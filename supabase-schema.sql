@@ -12,12 +12,20 @@ CREATE TABLE IF NOT EXISTS profiles (
   name TEXT NOT NULL,
   cargo TEXT,
   avatar_url TEXT,
+  bio TEXT,
+  avatar_frame TEXT DEFAULT 'none',
+  stickers JSONB DEFAULT '[]'::jsonb,
   role TEXT NOT NULL DEFAULT 'collaborator' CHECK (role IN ('admin', 'collaborator')),
   pontos INTEGER NOT NULL DEFAULT 0,
   streak INTEGER NOT NULL DEFAULT 0,
   recorde_streak INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Garantir que as colunas existam caso a tabela já tenha sido criada
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS bio TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_frame TEXT DEFAULT 'none';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS stickers JSONB DEFAULT '[]'::jsonb;
 
 -- Tasks
 CREATE TABLE IF NOT EXISTS tasks (
@@ -205,7 +213,8 @@ BEGIN
     COALESCE(NEW.raw_user_meta_data->>'name', split_part(NEW.email, '@', 1)),
     NEW.raw_user_meta_data->>'cargo',
     COALESCE(NEW.raw_user_meta_data->>'role', 'collaborator')
-  );
+  )
+  ON CONFLICT (id) DO NOTHING;
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -213,6 +222,12 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION handle_new_user();
+
+-- Sincronizar perfis para usuários que já existem mas não têm perfil (caso necessário)
+INSERT INTO profiles (id, name, role)
+SELECT id, COALESCE(raw_user_meta_data->>'name', split_part(email, '@', 1)), COALESCE(raw_user_meta_data->>'role', 'collaborator')
+FROM auth.users
+ON CONFLICT (id) DO NOTHING;
 
 -- ============================================
 -- FUNÇÃO: incrementar pontos do usuário
