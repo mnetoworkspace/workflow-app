@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Mail, UserPlus, Clock, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react'
+import { Mail, UserPlus, Clock, RefreshCw, ChevronDown, ChevronUp, Copy, Check, Link } from 'lucide-react'
 
 interface PendingInvite {
   id: string
@@ -15,16 +15,27 @@ interface PendingInvite {
   invited_at: string
 }
 
+interface InviteResult {
+  link: string
+  emailSent: boolean
+  name: string
+  email: string
+}
+
 export default function InviteForm() {
   const [name, setName]   = useState('')
   const [email, setEmail] = useState('')
   const [cargo, setCargo] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const [pending, setPending]           = useState<PendingInvite[]>([])
-  const [showPending, setShowPending]   = useState(false)
+  const [result, setResult]   = useState<InviteResult | null>(null)
+  const [copied, setCopied]   = useState(false)
+
+  const [pending, setPending]         = useState<PendingInvite[]>([])
+  const [showPending, setShowPending] = useState(false)
   const [loadingPending, setLoadingPending] = useState(false)
-  const [resending, setResending]       = useState<string | null>(null)
+  const [resendResult, setResendResult]     = useState<{ email: string; link: string } | null>(null)
+  const [resending, setResending]           = useState<string | null>(null)
 
   const router = useRouter()
 
@@ -40,18 +51,28 @@ export default function InviteForm() {
     if (showPending) fetchPending()
   }, [showPending, fetchPending])
 
+  async function copyLink(link: string) {
+    await navigator.clipboard.writeText(link)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
+    setResult(null)
     const res = await fetch('/api/admin/invite', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, name, cargo }),
     })
     const data = await res.json()
-    if (!res.ok) toast.error(data.error || 'Erro ao enviar convite')
-    else {
-      toast.success(`Convite enviado para ${email}!`)
+    if (!res.ok) {
+      toast.error(data.error || 'Erro ao criar convite')
+    } else {
+      setResult({ link: data.link, emailSent: data.emailSent, name, email })
+      if (data.emailSent) toast.success(`Email enviado para ${email}!`)
+      else toast.success('Convite gerado! Copie o link abaixo.')
       setName(''); setEmail(''); setCargo('')
       if (showPending) fetchPending()
       router.refresh()
@@ -61,14 +82,22 @@ export default function InviteForm() {
 
   async function handleResend(invite: PendingInvite) {
     setResending(invite.email)
+    setResendResult(null)
     const res = await fetch('/api/admin/invite', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: invite.email }),
     })
     const data = await res.json()
-    if (!res.ok) toast.error(data.error || 'Erro ao reenviar')
-    else toast.success(`Convite reenviado para ${invite.email}!`)
+    if (!res.ok) {
+      toast.error(data.error || 'Erro ao reenviar')
+    } else {
+      if (data.emailSent) toast.success(`Email reenviado para ${invite.email}!`)
+      else {
+        setResendResult({ email: invite.email, link: data.link })
+        toast.success('Link gerado! Copie abaixo.')
+      }
+    }
     setResending(null)
   }
 
@@ -78,7 +107,7 @@ export default function InviteForm() {
 
   return (
     <div className="space-y-4">
-      {/* Formulário de convite */}
+      {/* Formulário */}
       <div className="neon-card rounded-2xl border border-[#00f0ff]/15 overflow-hidden">
         <div className="h-px bg-gradient-to-r from-transparent via-[#00f0ff]/50 to-transparent" />
         <div className="p-5">
@@ -101,19 +130,54 @@ export default function InviteForm() {
               <Input type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="email@exemplo.com" className="neon-input mt-1 h-9 text-sm" />
             </div>
             <motion.button
-              type="submit"
-              disabled={loading || !name.trim() || !email.trim()}
+              type="submit" disabled={loading || !name.trim() || !email.trim()}
               whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.98 }}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium bg-[#00f0ff]/10 border border-[#00f0ff]/30 text-[#00f0ff] hover:bg-[#00f0ff]/20 transition-all disabled:opacity-40 w-full justify-center"
               style={{ boxShadow: '0 0 12px rgba(0,240,255,0.1)' }}
             >
               <Mail className="h-4 w-4" />
-              {loading ? 'Enviando...' : 'Enviar convite por email'}
+              {loading ? 'Gerando convite...' : 'Gerar convite'}
             </motion.button>
           </form>
-          <p className="text-[10px] text-[#333355] mt-3">
-            O colaborador receberá um email com link para definir a própria senha.
-          </p>
+
+          {/* Resultado do convite */}
+          <AnimatePresence>
+            {result && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+                className="mt-4 overflow-hidden"
+              >
+                <div className={`rounded-xl border p-3 ${result.emailSent ? 'border-[#00ff88]/20 bg-[#00ff88]/05' : 'border-[#ffe600]/20 bg-[#ffe600]/05'}`}>
+                  {result.emailSent ? (
+                    <p className="text-xs text-[#00ff88] mb-2">✅ Email enviado para <strong>{result.email}</strong></p>
+                  ) : (
+                    <p className="text-xs text-[#ffe600] mb-2 flex items-center gap-1.5">
+                      <Link className="h-3 w-3 shrink-0" />
+                      Email não enviado — compartilhe o link abaixo com <strong>{result.name}</strong>:
+                    </p>
+                  )}
+                  {result.link && (
+                    <div className="flex gap-2 items-center">
+                      <input
+                        readOnly value={result.link}
+                        className="flex-1 text-[10px] bg-black/20 border border-white/10 rounded-lg px-2 py-1.5 text-[#6666aa] truncate"
+                      />
+                      <button
+                        onClick={() => copyLink(result.link)}
+                        className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-medium border transition-all"
+                        style={copied
+                          ? { borderColor: 'rgba(0,255,136,0.3)', color: '#00ff88', background: 'rgba(0,255,136,0.1)' }
+                          : { borderColor: 'rgba(255,255,255,0.1)', color: '#8888aa', background: 'rgba(255,255,255,0.03)' }
+                        }
+                      >
+                        {copied ? <><Check className="h-3 w-3" /> Copiado!</> : <><Copy className="h-3 w-3" /> Copiar</>}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
@@ -125,13 +189,9 @@ export default function InviteForm() {
         >
           <div className="flex items-center gap-2">
             <Clock className="h-3.5 w-3.5 text-[#6666aa]" />
-            <span className="text-[10px] font-semibold text-[#6666aa] uppercase tracking-wider">
-              Convites pendentes
-            </span>
+            <span className="text-[10px] font-semibold text-[#6666aa] uppercase tracking-wider">Convites pendentes</span>
             {pending.length > 0 && (
-              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#ff8800]/20 text-[#ff8800] font-bold">
-                {pending.length}
-              </span>
+              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#ff8800]/20 text-[#ff8800] font-bold">{pending.length}</span>
             )}
           </div>
           {showPending ? <ChevronUp className="h-3.5 w-3.5 text-[#444466]" /> : <ChevronDown className="h-3.5 w-3.5 text-[#444466]" />}
@@ -140,11 +200,8 @@ export default function InviteForm() {
         <AnimatePresence>
           {showPending && (
             <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="overflow-hidden border-t border-white/[0.05]"
+              initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }} className="overflow-hidden border-t border-white/[0.05]"
             >
               {loadingPending ? (
                 <div className="flex justify-center py-8">
@@ -155,28 +212,48 @@ export default function InviteForm() {
               ) : (
                 <div className="divide-y divide-white/[0.04]">
                   {pending.map(invite => (
-                    <div key={invite.id} className="flex items-center gap-3 px-5 py-3">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-white truncate">{invite.name}</p>
-                        <p className="text-[11px] text-[#444466] truncate">{invite.email}</p>
-                        {invite.cargo && <p className="text-[10px] text-[#333355]">{invite.cargo}</p>}
+                    <div key={invite.id} className="px-5 py-3 space-y-2">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-white truncate">{invite.name}</p>
+                          <p className="text-[11px] text-[#444466] truncate">{invite.email}</p>
+                          {invite.cargo && <p className="text-[10px] text-[#333355]">{invite.cargo}</p>}
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-[10px] text-[#333355] mb-1.5">Enviado {formatDate(invite.invited_at)}</p>
+                          <button
+                            onClick={() => handleResend(invite)}
+                            disabled={resending === invite.email}
+                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-medium text-[#00f0ff] border border-[#00f0ff]/25 bg-[#00f0ff]/05 hover:bg-[#00f0ff]/15 transition-all disabled:opacity-40"
+                          >
+                            {resending === invite.email
+                              ? <span className="h-3 w-3 rounded-full border border-[#00f0ff] border-t-transparent animate-spin" />
+                              : <RefreshCw className="h-3 w-3" />
+                            }
+                            Gerar link
+                          </button>
+                        </div>
                       </div>
-                      <div className="text-right shrink-0">
-                        <p className="text-[10px] text-[#333355] mb-1.5">
-                          Enviado {formatDate(invite.invited_at)}
-                        </p>
-                        <button
-                          onClick={() => handleResend(invite)}
-                          disabled={resending === invite.email}
-                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-medium text-[#00f0ff] border border-[#00f0ff]/25 bg-[#00f0ff]/05 hover:bg-[#00f0ff]/15 transition-all disabled:opacity-40"
-                        >
-                          {resending === invite.email
-                            ? <span className="h-3 w-3 rounded-full border border-[#00f0ff] border-t-transparent animate-spin" />
-                            : <RefreshCw className="h-3 w-3" />
-                          }
-                          Reenviar
-                        </button>
-                      </div>
+
+                      {/* Link gerado para este convite */}
+                      <AnimatePresence>
+                        {resendResult?.email === invite.email && (
+                          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
+                            <div className="flex gap-2 items-center mt-1">
+                              <input
+                                readOnly value={resendResult.link}
+                                className="flex-1 text-[10px] bg-black/20 border border-white/10 rounded-lg px-2 py-1.5 text-[#6666aa] truncate"
+                              />
+                              <button
+                                onClick={() => copyLink(resendResult.link)}
+                                className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-medium border border-white/10 text-[#8888aa] hover:text-[#00ff88] hover:border-[#00ff88]/30 transition-all"
+                              >
+                                <Copy className="h-3 w-3" /> Copiar
+                              </button>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   ))}
                 </div>
