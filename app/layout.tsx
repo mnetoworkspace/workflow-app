@@ -6,8 +6,8 @@ import { Toaster } from '@/components/ui/sonner'
 const geist = Geist({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'TaskDay — Squad Raiz',
-  description: 'Gestão de dailies da Squad Raiz',
+  title: 'DailyFlux — Squad Raiz',
+  description: 'Acompanhamento de atividades e fluxo de dailies da Squad Raiz',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

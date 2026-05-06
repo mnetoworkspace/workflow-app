@@ -70,9 +70,9 @@ export async function POST(request: Request) {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${RESEND_KEY}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          from:    'TaskDay <onboarding@resend.dev>',
+          from:    'DailyFlux <onboarding@resend.dev>',
           to:      [email],
-          subject: `${name}, você foi convidado para o TaskDay`,
+          subject: `${name}, você foi convidado para o DailyFlux`,
           html:    buildInviteEmail(name, link),
         }),
       })
@@ -111,9 +111,9 @@ export async function PUT(request: Request) {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${RESEND_KEY}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          from:    'TaskDay <onboarding@resend.dev>',
+          from:    'DailyFlux <onboarding@resend.dev>',
           to:      [email],
-          subject: `${name}, seu convite para o TaskDay`,
+          subject: `${name}, seu convite para o DailyFlux`,
           html:    buildInviteEmail(name, link),
         }),
       })
@@ -127,10 +127,10 @@ export async function PUT(request: Request) {
 function buildInviteEmail(name: string, link: string) {
   return `
     <div style="font-family:sans-serif;max-width:480px;margin:0 auto;background:#05050f;color:#fff;border-radius:16px;padding:32px;border:1px solid rgba(0,240,255,0.15)">
-      <h1 style="color:#00f0ff;font-size:24px;margin:0 0 4px">TASKDAY</h1>
-      <p style="color:#6666aa;font-size:12px;margin:0 0 24px">Squad Raiz · Sistema de Dailies</p>
+      <h1 style="color:#00f0ff;font-size:24px;margin:0 0 4px">DAILYFLUX</h1>
+      <p style="color:#6666aa;font-size:12px;margin:0 0 24px">Squad Raiz · Atividades e Dailies</p>
       <p style="color:#fff;font-size:16px">Olá, <strong>${name}</strong>!</p>
-      <p style="color:#8888aa">Você foi convidado para o TaskDay. Clique no botão abaixo para definir sua senha e começar.</p>
+      <p style="color:#8888aa">Você foi convidado para o DailyFlux. Clique no botão abaixo para definir sua senha e começar.</p>
       <a href="${link}" style="display:inline-block;margin:24px 0;padding:12px 28px;background:#00f0ff;color:#05050f;font-weight:700;border-radius:8px;text-decoration:none;font-size:14px">
         Definir senha e entrar
       </a>

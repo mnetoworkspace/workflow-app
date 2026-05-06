@@ -47,9 +47,9 @@ export default function LoginPage() {
             className="inline-flex items-center gap-2 mb-3"
           >
             <Zap className="h-7 w-7 text-[#00f0ff]" style={{ filter: 'drop-shadow(0 0 12px #00f0ff)' }} />
-            <span className="text-3xl font-bold text-white tracking-widest text-glow-cyan">TASKDAY</span>
+            <span className="text-3xl font-bold text-white tracking-widest text-glow-cyan">DAILYFLUX</span>
           </motion.div>
-          <p className="text-[#444466] text-xs tracking-[0.3em] uppercase">Squad Raiz · Sistema de Dailies</p>
+          <p className="text-[#444466] text-xs tracking-[0.3em] uppercase">Squad Raiz · Atividades e Dailies</p>
         </div>
 
         {/* Card */}

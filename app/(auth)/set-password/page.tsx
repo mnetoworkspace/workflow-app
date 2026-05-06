@@ -42,7 +42,7 @@ export default function SetPasswordPage() {
       setLoading(false)
       return
     }
-    toast.success('Senha definida! Bem-vindo ao TaskDay!')
+    toast.success('Senha definida! Bem-vindo ao DailyFlux!')
     router.push('/dashboard')
     router.refresh()
   }
@@ -68,9 +68,9 @@ export default function SetPasswordPage() {
           <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.2, type: 'spring' }}
             className="inline-flex items-center gap-2 mb-3">
             <Zap className="h-7 w-7 text-[#00f0ff]" style={{ filter: 'drop-shadow(0 0 12px #00f0ff)' }} />
-            <span className="text-3xl font-bold text-white tracking-widest text-glow-cyan">TASKDAY</span>
+            <span className="text-3xl font-bold text-white tracking-widest text-glow-cyan">DAILYFLUX</span>
           </motion.div>
-          <p className="text-[#444466] text-xs tracking-[0.3em] uppercase">Squad Raiz · Sistema de Dailies</p>
+          <p className="text-[#444466] text-xs tracking-[0.3em] uppercase">Squad Raiz · Atividades e Dailies</p>
         </div>
 
         {/* Card */}
@@ -82,7 +82,7 @@ export default function SetPasswordPage() {
             <KeyRound className="h-4 w-4 text-[#b44bff]" />
             <h2 className="text-lg font-semibold text-white">Definir senha</h2>
           </div>
-          <p className="text-[#444466] text-xs mb-5">Escolha uma senha para acessar o TaskDay</p>
+          <p className="text-[#444466] text-xs mb-5">Escolha uma senha para acessar o DailyFlux</p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">

@@ -69,8 +69,7 @@ export default function Sidebar({ profile }: { profile: Profile }) {
             <Zap className="h-6 w-6 text-[#00f0ff]" style={{ filter: 'drop-shadow(0 0 8px #00f0ff)' }} />
           </div>
           <div>
-            <span className="font-bold text-white text-lg tracking-widest text-glow-cyan">TASKDAY</span>
-            <p className="text-[10px] text-[#6666aa] tracking-[0.2em] uppercase mt-0.5">Squad Raiz</p>
+            <span className="font-bold text-white text-lg tracking-widest text-glow-cyan">DAILYFLUX
           </div>
         </motion.div>
       </div>
