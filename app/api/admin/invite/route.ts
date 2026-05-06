@@ -1,7 +1,7 @@
 import { createAdminClient, createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
-export async function POST(request: Request) {
+export async function POST(request: Request, { params }: { params: Record<string, string> }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
@@ -24,8 +24,11 @@ export async function POST(request: Request) {
 
   const admin = await createAdminClient()
 
+  const origin = request.headers.get('origin') ?? request.headers.get('referer')?.replace(/\/[^/]*$/, '') ?? 'http://localhost:3000'
+
   const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
     data: { name, cargo: cargo || null, role: 'collaborator' },
+    redirectTo: `${origin}/login`,
   })
 
   if (error) {
