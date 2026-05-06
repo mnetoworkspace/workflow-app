@@ -19,15 +19,24 @@ export default function SetPasswordPage() {
   const supabase = createClient()
 
   useEffect(() => {
-    // Supabase processa o hash #access_token=... automaticamente no client
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        setReady(true)
-      } else {
-        toast.error('Link inválido ou expirado')
-        router.replace('/login')
-      }
-    })
+    const hash = window.location.hash.substring(1)
+    const params = new URLSearchParams(hash)
+    const access_token  = params.get('access_token')
+    const refresh_token = params.get('refresh_token')
+
+    if (access_token && refresh_token) {
+      // Link de convite — tokens vêm no hash fragment
+      supabase.auth.setSession({ access_token, refresh_token }).then(({ error }) => {
+        if (error) { toast.error('Link inválido ou expirado'); router.replace('/login') }
+        else setReady(true)
+      })
+    } else {
+      // Fallback: sessão já existente (ex: vindo do auth/callback)
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) setReady(true)
+        else { toast.error('Link inválido ou expirado'); router.replace('/login') }
+      })
+    }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleSubmit(e: React.FormEvent) {
