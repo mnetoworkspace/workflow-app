@@ -1,263 +1,148 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Mail, UserPlus, Clock, RefreshCw, ChevronDown, ChevronUp, Copy, Check, Link } from 'lucide-react'
+import { UserPlus, Eye, EyeOff, Copy, Check, KeyRound } from 'lucide-react'
 
-interface PendingInvite {
-  id: string
-  email: string
-  name: string
-  cargo: string | null
-  invited_at: string
-}
-
-interface InviteResult {
-  link: string
-  emailSent: boolean
+interface CreatedUser {
   name: string
   email: string
+  password: string
 }
 
 export default function InviteForm() {
-  const [name, setName]   = useState('')
-  const [email, setEmail] = useState('')
-  const [cargo, setCargo] = useState('')
+  const [name, setName]       = useState('')
+  const [email, setEmail]     = useState('')
+  const [cargo, setCargo]     = useState('')
+  const [password, setPassword] = useState('')
+  const [showPw, setShowPw]   = useState(false)
   const [loading, setLoading] = useState(false)
-
-  const [result, setResult]   = useState<InviteResult | null>(null)
+  const [created, setCreated] = useState<CreatedUser | null>(null)
   const [copied, setCopied]   = useState(false)
-
-  const [pending, setPending]         = useState<PendingInvite[]>([])
-  const [showPending, setShowPending] = useState(false)
-  const [loadingPending, setLoadingPending] = useState(false)
-  const [resendResult, setResendResult]     = useState<{ email: string; link: string } | null>(null)
-  const [resending, setResending]           = useState<string | null>(null)
 
   const router = useRouter()
 
-  const fetchPending = useCallback(async () => {
-    setLoadingPending(true)
-    const res = await fetch('/api/admin/invite')
-    const data = await res.json()
-    if (res.ok) setPending(data.pending ?? [])
-    setLoadingPending(false)
-  }, [])
-
-  useEffect(() => {
-    if (showPending) fetchPending()
-  }, [showPending, fetchPending])
-
-  async function copyLink(link: string) {
-    await navigator.clipboard.writeText(link)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  async function handleInvite(e: React.FormEvent) {
+  async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
+    if (password.length < 6) return toast.error('Senha deve ter no mínimo 6 caracteres')
+
     setLoading(true)
-    setResult(null)
+    setCreated(null)
     const res = await fetch('/api/admin/invite', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, name, cargo }),
+      body: JSON.stringify({ email, name, cargo, password }),
     })
     const data = await res.json()
     if (!res.ok) {
-      toast.error(data.error || 'Erro ao criar convite')
+      toast.error(data.error || 'Erro ao criar membro')
     } else {
-      setResult({ link: data.link, emailSent: data.emailSent, name, email })
-      if (data.emailSent) toast.success(`Email enviado para ${email}!`)
-      else toast.success('Convite gerado! Copie o link abaixo.')
-      setName(''); setEmail(''); setCargo('')
-      if (showPending) fetchPending()
+      setCreated({ name, email, password })
+      toast.success(`${name} criado com sucesso!`)
+      setName(''); setEmail(''); setCargo(''); setPassword('')
       router.refresh()
     }
     setLoading(false)
   }
 
-  async function handleResend(invite: PendingInvite) {
-    setResending(invite.email)
-    setResendResult(null)
-    const res = await fetch('/api/admin/invite', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: invite.email }),
-    })
-    const data = await res.json()
-    if (!res.ok) {
-      toast.error(data.error || 'Erro ao reenviar')
-    } else {
-      if (data.emailSent) toast.success(`Email reenviado para ${invite.email}!`)
-      else {
-        setResendResult({ email: invite.email, link: data.link })
-        toast.success('Link gerado! Copie abaixo.')
-      }
-    }
-    setResending(null)
-  }
-
-  function formatDate(iso: string) {
-    return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+  async function copyCredentials() {
+    if (!created) return
+    const text = `Acesso DailyFlux\nEmail: ${created.email}\nSenha: ${created.password}\nhttps://www.dailyflux.site/login`
+    await navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2500)
   }
 
   return (
-    <div className="space-y-4">
-      {/* Formulário */}
-      <div className="neon-card rounded-2xl border border-[#00f0ff]/15 overflow-hidden">
-        <div className="h-px bg-gradient-to-r from-transparent via-[#00f0ff]/50 to-transparent" />
-        <div className="p-5">
-          <p className="text-[10px] font-semibold text-[#00f0ff] uppercase tracking-wider flex items-center gap-2 mb-4">
-            <UserPlus className="h-3.5 w-3.5" /> Convidar novo membro
-          </p>
-          <form onSubmit={handleInvite} className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-[10px] text-[#6666aa] uppercase tracking-wider font-semibold">Nome completo *</label>
-                <Input value={name} onChange={e => setName(e.target.value)} required placeholder="Ex: Heitor Silva" className="neon-input mt-1 h-9 text-sm" />
-              </div>
-              <div>
-                <label className="text-[10px] text-[#6666aa] uppercase tracking-wider font-semibold">Cargo</label>
-                <Input value={cargo} onChange={e => setCargo(e.target.value)} placeholder="Ex: Designer" className="neon-input mt-1 h-9 text-sm" />
-              </div>
+    <div className="neon-card rounded-2xl border border-[#00f0ff]/15 overflow-hidden">
+      <div className="h-px bg-gradient-to-r from-transparent via-[#00f0ff]/50 to-transparent" />
+      <div className="p-5">
+        <p className="text-[10px] font-semibold text-[#00f0ff] uppercase tracking-wider flex items-center gap-2 mb-4">
+          <UserPlus className="h-3.5 w-3.5" /> Criar novo membro
+        </p>
+
+        <form onSubmit={handleCreate} className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[10px] text-[#6666aa] uppercase tracking-wider font-semibold">Nome completo *</label>
+              <Input value={name} onChange={e => setName(e.target.value)} required placeholder="Ex: Heitor Silva" className="neon-input mt-1 h-9 text-sm" />
             </div>
             <div>
-              <label className="text-[10px] text-[#6666aa] uppercase tracking-wider font-semibold">Email *</label>
-              <Input type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="email@exemplo.com" className="neon-input mt-1 h-9 text-sm" />
+              <label className="text-[10px] text-[#6666aa] uppercase tracking-wider font-semibold">Cargo</label>
+              <Input value={cargo} onChange={e => setCargo(e.target.value)} placeholder="Ex: Designer" className="neon-input mt-1 h-9 text-sm" />
             </div>
-            <motion.button
-              type="submit" disabled={loading || !name.trim() || !email.trim()}
-              whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.98 }}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium bg-[#00f0ff]/10 border border-[#00f0ff]/30 text-[#00f0ff] hover:bg-[#00f0ff]/20 transition-all disabled:opacity-40 w-full justify-center"
-              style={{ boxShadow: '0 0 12px rgba(0,240,255,0.1)' }}
-            >
-              <Mail className="h-4 w-4" />
-              {loading ? 'Gerando convite...' : 'Gerar convite'}
-            </motion.button>
-          </form>
-
-          {/* Resultado do convite */}
-          <AnimatePresence>
-            {result && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-                className="mt-4 overflow-hidden"
-              >
-                <div className={`rounded-xl border p-3 ${result.emailSent ? 'border-[#00ff88]/20 bg-[#00ff88]/05' : 'border-[#ffe600]/20 bg-[#ffe600]/05'}`}>
-                  {result.emailSent ? (
-                    <p className="text-xs text-[#00ff88] mb-2">✅ Email enviado para <strong>{result.email}</strong></p>
-                  ) : (
-                    <p className="text-xs text-[#ffe600] mb-2 flex items-center gap-1.5">
-                      <Link className="h-3 w-3 shrink-0" />
-                      Email não enviado — compartilhe o link abaixo com <strong>{result.name}</strong>:
-                    </p>
-                  )}
-                  {result.link && (
-                    <div className="flex gap-2 items-center">
-                      <input
-                        readOnly value={result.link}
-                        className="flex-1 text-[10px] bg-black/20 border border-white/10 rounded-lg px-2 py-1.5 text-[#6666aa] truncate"
-                      />
-                      <button
-                        onClick={() => copyLink(result.link)}
-                        className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-medium border transition-all"
-                        style={copied
-                          ? { borderColor: 'rgba(0,255,136,0.3)', color: '#00ff88', background: 'rgba(0,255,136,0.1)' }
-                          : { borderColor: 'rgba(255,255,255,0.1)', color: '#8888aa', background: 'rgba(255,255,255,0.03)' }
-                        }
-                      >
-                        {copied ? <><Check className="h-3 w-3" /> Copiado!</> : <><Copy className="h-3 w-3" /> Copiar</>}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
-
-      {/* Convites pendentes */}
-      <div className="neon-card rounded-2xl border border-white/[0.07] overflow-hidden">
-        <button
-          onClick={() => setShowPending(v => !v)}
-          className="w-full flex items-center justify-between px-5 py-3 hover:bg-white/[0.02] transition-colors"
-        >
-          <div className="flex items-center gap-2">
-            <Clock className="h-3.5 w-3.5 text-[#6666aa]" />
-            <span className="text-[10px] font-semibold text-[#6666aa] uppercase tracking-wider">Convites pendentes</span>
-            {pending.length > 0 && (
-              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#ff8800]/20 text-[#ff8800] font-bold">{pending.length}</span>
-            )}
           </div>
-          {showPending ? <ChevronUp className="h-3.5 w-3.5 text-[#444466]" /> : <ChevronDown className="h-3.5 w-3.5 text-[#444466]" />}
-        </button>
 
+          <div>
+            <label className="text-[10px] text-[#6666aa] uppercase tracking-wider font-semibold">Email *</label>
+            <Input type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="email@exemplo.com" className="neon-input mt-1 h-9 text-sm" />
+          </div>
+
+          <div>
+            <label className="text-[10px] text-[#6666aa] uppercase tracking-wider font-semibold">Senha inicial *</label>
+            <div className="relative mt-1">
+              <Input
+                type={showPw ? 'text' : 'password'}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required minLength={6}
+                placeholder="Mínimo 6 caracteres"
+                className="neon-input h-9 text-sm pr-10"
+              />
+              <button type="button" onClick={() => setShowPw(v => !v)} tabIndex={-1}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#444466] hover:text-[#00f0ff] transition-colors">
+                {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+
+          <motion.button
+            type="submit" disabled={loading || !name.trim() || !email.trim() || !password}
+            whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.98 }}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium bg-[#00f0ff]/10 border border-[#00f0ff]/30 text-[#00f0ff] hover:bg-[#00f0ff]/20 transition-all disabled:opacity-40 w-full justify-center"
+            style={{ boxShadow: '0 0 12px rgba(0,240,255,0.1)' }}
+          >
+            <UserPlus className="h-4 w-4" />
+            {loading ? 'Criando...' : 'Criar membro'}
+          </motion.button>
+        </form>
+
+        {/* Credenciais geradas */}
         <AnimatePresence>
-          {showPending && (
+          {created && (
             <motion.div
-              initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }} className="overflow-hidden border-t border-white/[0.05]"
+              initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+              className="mt-4 overflow-hidden"
             >
-              {loadingPending ? (
-                <div className="flex justify-center py-8">
-                  <span className="h-5 w-5 rounded-full border border-[#00f0ff]/40 border-t-[#00f0ff] animate-spin" />
+              <div className="rounded-xl border border-[#00ff88]/20 bg-[#00ff88]/[0.03] p-3 space-y-2">
+                <p className="text-[10px] font-semibold text-[#00ff88] flex items-center gap-1.5">
+                  <KeyRound className="h-3 w-3" />
+                  Membro criado! Compartilhe as credenciais abaixo:
+                </p>
+                <div className="space-y-1 text-[11px] font-mono">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[#444466] w-12 shrink-0">Email</span>
+                    <span className="text-white">{created.email}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[#444466] w-12 shrink-0">Senha</span>
+                    <span className="text-white">{created.password}</span>
+                  </div>
                 </div>
-              ) : pending.length === 0 ? (
-                <p className="text-center text-xs text-[#333355] py-6">Nenhum convite pendente</p>
-              ) : (
-                <div className="divide-y divide-white/[0.04]">
-                  {pending.map(invite => (
-                    <div key={invite.id} className="px-5 py-3 space-y-2">
-                      <div className="flex items-start gap-3">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-white truncate">{invite.name}</p>
-                          <p className="text-[11px] text-[#444466] truncate">{invite.email}</p>
-                          {invite.cargo && <p className="text-[10px] text-[#333355]">{invite.cargo}</p>}
-                        </div>
-                        <div className="text-right shrink-0">
-                          <p className="text-[10px] text-[#333355] mb-1.5">Enviado {formatDate(invite.invited_at)}</p>
-                          <button
-                            onClick={() => handleResend(invite)}
-                            disabled={resending === invite.email}
-                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-medium text-[#00f0ff] border border-[#00f0ff]/25 bg-[#00f0ff]/05 hover:bg-[#00f0ff]/15 transition-all disabled:opacity-40"
-                          >
-                            {resending === invite.email
-                              ? <span className="h-3 w-3 rounded-full border border-[#00f0ff] border-t-transparent animate-spin" />
-                              : <RefreshCw className="h-3 w-3" />
-                            }
-                            Gerar link
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Link gerado para este convite */}
-                      <AnimatePresence>
-                        {resendResult?.email === invite.email && (
-                          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
-                            <div className="flex gap-2 items-center mt-1">
-                              <input
-                                readOnly value={resendResult.link}
-                                className="flex-1 text-[10px] bg-black/20 border border-white/10 rounded-lg px-2 py-1.5 text-[#6666aa] truncate"
-                              />
-                              <button
-                                onClick={() => copyLink(resendResult.link)}
-                                className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-medium border border-white/10 text-[#8888aa] hover:text-[#00ff88] hover:border-[#00ff88]/30 transition-all"
-                              >
-                                <Copy className="h-3 w-3" /> Copiar
-                              </button>
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                  ))}
-                </div>
-              )}
+                <button
+                  onClick={copyCredentials}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-medium border transition-all w-full justify-center mt-1"
+                  style={copied
+                    ? { borderColor: 'rgba(0,255,136,0.4)', color: '#00ff88', background: 'rgba(0,255,136,0.1)' }
+                    : { borderColor: 'rgba(255,255,255,0.1)', color: '#8888aa', background: 'rgba(255,255,255,0.03)' }
+                  }
+                >
+                  {copied ? <><Check className="h-3 w-3" /> Copiado!</> : <><Copy className="h-3 w-3" /> Copiar credenciais para WhatsApp</>}
+                </button>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
