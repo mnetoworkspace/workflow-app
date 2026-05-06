@@ -16,7 +16,7 @@ async function generateInviteLink(admin: Awaited<ReturnType<typeof createAdminCl
     email,
     options: {
       data: meta,
-      redirectTo: `${origin}/set-password`,
+      redirectTo: `${origin}/auth/callback?next=/set-password`,
     },
   })
   if (error) return { link: null, error: error.message }
