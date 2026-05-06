@@ -70,7 +70,7 @@ export async function POST(request: Request) {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${RESEND_KEY}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          from:    'DailyFlux <onboarding@resend.dev>',
+          from:    'DailyFlux <noreply@dailyflux.site>',
           to:      [email],
           subject: `${name}, você foi convidado para o DailyFlux`,
           html:    buildInviteEmail(name, link),
@@ -111,7 +111,7 @@ export async function PUT(request: Request) {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${RESEND_KEY}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          from:    'DailyFlux <onboarding@resend.dev>',
+          from:    'DailyFlux <noreply@dailyflux.site>',
           to:      [email],
           subject: `${name}, seu convite para o DailyFlux`,
           html:    buildInviteEmail(name, link),
