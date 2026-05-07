@@ -20,7 +20,7 @@ export default function MobileNav({ profile }: { profile: Profile }) {
     : baseItems
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden">
       <div className="bg-[#06061a]/96 backdrop-blur-xl border-t border-white/[0.08]">
         {/* Top glow line */}
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#00f0ff]/25 to-transparent" />
@@ -54,6 +54,8 @@ export default function MobileNav({ profile }: { profile: Profile }) {
             )
           })}
         </div>
+        {/* iOS home indicator safe area */}
+        <div style={{ height: 'env(safe-area-inset-bottom)' }} />
       </div>
     </nav>
   )

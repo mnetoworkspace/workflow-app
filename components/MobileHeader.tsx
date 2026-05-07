@@ -14,8 +14,9 @@ export default function MobileHeader({ profile }: { profile: Profile }) {
   return (
     <header
       className="md:hidden sticky top-0 z-40 bg-[#06061a]/96 backdrop-blur-xl"
-      style={{ paddingTop: 'env(safe-area-inset-top)' }}
     >
+      {/* Safe area for notch / Dynamic Island / status bar */}
+      <div style={{ height: 'env(safe-area-inset-top)' }} />
       <div className="h-px bg-gradient-to-r from-transparent via-[#00f0ff]/40 to-transparent" />
       <div className="flex items-center justify-between px-4 h-14">
         <div className="flex items-center gap-2">
