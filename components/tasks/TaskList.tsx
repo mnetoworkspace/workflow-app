@@ -94,7 +94,7 @@ function TaskItem({ task, userId, isAdmin }: { task: Task; userId: string; isAdm
       </span>
 
       {canEdit && task.status === 'em_andamento' && (
-        <div className="flex gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex gap-0.5 shrink-0 transition-opacity md:opacity-0 md:group-hover:opacity-100">
           <button onClick={() => updateStatus('concluida')} className="h-7 w-7 flex items-center justify-center rounded text-[#00ff88] hover:bg-[#00ff88]/10 transition-colors" title="Concluir">
             <CheckCircle2 className="h-3.5 w-3.5" />
           </button>

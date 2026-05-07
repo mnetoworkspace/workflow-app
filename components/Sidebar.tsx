@@ -53,7 +53,7 @@ export default function Sidebar({ profile }: { profile: Profile }) {
   const initials = profile.name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()
 
   return (
-    <aside className="w-64 flex flex-col border-r border-white/[0.06] bg-[#06061a] relative overflow-hidden">
+    <aside className="hidden md:flex w-64 flex-col border-r border-white/[0.06] bg-[#06061a] relative overflow-hidden">
       {/* Ambient glow top */}
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#00f0ff]/40 to-transparent" />
 

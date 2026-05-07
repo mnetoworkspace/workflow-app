@@ -148,7 +148,7 @@ export default function ProfileEditor({
 
   /* ── render ── */
   return (
-    <div className="p-6 max-w-2xl mx-auto space-y-5">
+    <div className="p-4 md:p-6 max-w-2xl mx-auto space-y-5">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-white">Perfil</h1>
@@ -369,7 +369,7 @@ export default function ProfileEditor({
             </p>
             <p className="text-[10px] text-[#333355]">Clique para remover · slot vazio para adicionar</p>
           </div>
-          <div className="grid grid-cols-8 gap-2">
+          <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
             {Array.from({ length: 8 }, (_, i) => {
               const sticker = stickers.find(s => s.position === i)
               return (

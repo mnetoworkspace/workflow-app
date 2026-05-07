@@ -45,22 +45,22 @@ export default function StatsBar({ profile }: { profile: Profile }) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: i * 0.1, duration: 0.4 }}
-          className={`neon-card rounded-xl p-4 border ${border} ${bg}`}
+          className={`neon-card rounded-xl p-3 md:p-4 border ${border} ${bg}`}
         >
-          <div className="flex items-center gap-2 mb-2">
-            <Icon className="h-3.5 w-3.5" style={{ color, filter: `drop-shadow(0 0 6px ${color})` }} />
-            <span className="text-[10px] text-[#6666aa] font-medium uppercase tracking-wider">
+          <div className="flex items-center gap-1.5 mb-1.5 md:mb-2">
+            <Icon className="h-3 w-3 md:h-3.5 md:w-3.5" style={{ color, filter: `drop-shadow(0 0 6px ${color})` }} />
+            <span className="text-[9px] md:text-[10px] text-[#6666aa] font-medium uppercase tracking-wider">
               {i === 2 ? 'Nível' : i === 0 ? 'Streak' : 'Pontos'}
             </span>
           </div>
           {value !== null ? (
-            <p className="text-2xl font-bold font-mono" style={{ color, textShadow: `0 0 12px ${color}80` }}>
+            <p className="text-xl md:text-2xl font-bold font-mono" style={{ color, textShadow: `0 0 12px ${color}80` }}>
               <AnimatedNumber value={value} />
             </p>
           ) : (
-            <p className="text-sm font-bold leading-tight" style={{ color }}>{label}</p>
+            <p className="text-xs md:text-sm font-bold leading-tight" style={{ color }}>{label}</p>
           )}
-          {value !== null && <p className="text-[11px] text-[#444466] mt-0.5">{label}</p>}
+          {value !== null && <p className="text-[10px] md:text-[11px] text-[#444466] mt-0.5">{label}</p>}
           {i === 2 && proximo && (
             <div className="mt-2">
               <div className="h-1 bg-white/[0.06] rounded-full overflow-hidden">

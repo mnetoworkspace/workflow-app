@@ -95,10 +95,20 @@
   body { @apply bg-background text-foreground; }
   html { @apply font-sans; }
 
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
-  ::-webkit-scrollbar-track { background: #05050f; }
-  ::-webkit-scrollbar-thumb { background: rgba(0,240,255,0.2); border-radius: 3px; }
-  ::-webkit-scrollbar-thumb:hover { background: rgba(0,240,255,0.4); }
+  /* Smooth scrolling & touch */
+  html { -webkit-tap-highlight-color: transparent; scroll-behavior: smooth; }
+  * { -webkit-font-smoothing: antialiased; }
+
+  /* Prevent font-size bump on iOS orientation change */
+  body { -webkit-text-size-adjust: 100%; }
+
+  /* Input font size ≥16px prevents iOS auto-zoom */
+  input, textarea, select { font-size: max(16px, 1em); }
+
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(0,240,255,0.15); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(0,240,255,0.35); }
 }
 
 /* ── Neon glow utilities ─────────────────────── */

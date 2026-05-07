@@ -18,7 +18,7 @@ export default async function AdminPage() {
   ])
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
+    <div className="p-4 md:p-6 max-w-3xl mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-white flex items-center gap-2">
           <Shield className="h-6 w-6 text-[#b44bff]" style={{ filter: 'drop-shadow(0 0 8px #b44bff)' }} />

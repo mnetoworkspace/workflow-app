@@ -35,12 +35,16 @@ export default async function DashboardPage() {
   const dataFormatada = format(new Date(), "EEEE, d 'de' MMMM", { locale: ptBR })
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
+    <div className="p-4 md:p-6 max-w-3xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white capitalize">
-          Olá, {profile.name.split(' ')[0]} 👋
+        <h1 className="text-2xl font-bold capitalize">
+          <span className="text-white">Olá, </span>
+          <span style={{ background: 'linear-gradient(90deg, #00f0ff, #b44bff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+            {profile.name.split(' ')[0]}
+          </span>
+          <span className="text-white"> 👋</span>
         </h1>
-        <p className="text-zinc-400 text-sm mt-1 capitalize">{dataFormatada}</p>
+        <p className="text-[#6666aa] text-sm mt-1 capitalize">{dataFormatada}</p>
       </div>
 
       <StatsBar profile={profile} />

@@ -31,12 +31,12 @@ export default async function DailyPage() {
   const dataFormatada = format(new Date(), "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
+    <div className="p-4 md:p-6">
+      <div className="mb-5 md:mb-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-white">Daily — Squad Raiz</h1>
-            <p className="text-zinc-400 text-sm mt-1 capitalize">{dataFormatada}</p>
+            <h1 className="text-2xl font-bold text-white">Daily <span className="text-[#6666aa] font-normal">—</span> <span style={{ background: 'linear-gradient(90deg,#b44bff,#00f0ff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Squad Raiz</span></h1>
+            <p className="text-[#6666aa] text-sm mt-1 capitalize">{dataFormatada}</p>
           </div>
         </div>
       </div>
