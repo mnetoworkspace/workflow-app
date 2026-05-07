@@ -34,6 +34,8 @@ export interface Profile {
   bio: string | null
   avatar_frame: AvatarFrame
   stickers: ProfileSticker[]
+  banner_url: string | null
+  daily_mood: string | null
   created_at: string
 }
 

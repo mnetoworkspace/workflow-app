@@ -48,6 +48,7 @@ export default async function DailyPage() {
         impedimentos={impedimentos ?? []}
         currentProfile={currentProfile}
         today={today}
+        yesterday={yesterday}
       />
     </div>
   )

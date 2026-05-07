@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
-import { Camera, Flame, Star, Trophy, Pencil, Check, X } from 'lucide-react'
+import { Camera, Flame, Star, Trophy, Pencil, Check, X, Image, Link, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const FRAME_OPTIONS: AvatarFrame[] = ['none', 'cyan', 'purple', 'green', 'pink', 'gold', 'rainbow']
@@ -46,11 +46,16 @@ export default function ProfileEditor({
   const [stickers, setStickers]   = useState<ProfileSticker[]>(
     Array.isArray(profile.stickers) ? profile.stickers : []
   )
-  const [avatarUrl, setAvatarUrl] = useState(profile.avatar_url)
-  const [editing, setEditing]     = useState(false)
-  const [saving, setSaving]       = useState(false)
-  const [uploading, setUploading] = useState(false)
+  const [avatarUrl, setAvatarUrl]   = useState(profile.avatar_url)
+  const [bannerUrl, setBannerUrl]   = useState(profile.banner_url ?? '')
+  const [bannerInput, setBannerInput] = useState(profile.banner_url ?? '')
+  const [editingBanner, setEditingBanner] = useState(false)
+  const [uploadingBanner, setUploadingBanner] = useState(false)
+  const [editing, setEditing]       = useState(false)
+  const [saving, setSaving]         = useState(false)
+  const [uploading, setUploading]   = useState(false)
   const [pickerSlot, setPickerSlot] = useState<number | null>(null)
+  const bannerRef = useRef<HTMLInputElement>(null)
 
   const initials = name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()
   const nivel    = getNivel(profile.pontos)
@@ -84,6 +89,37 @@ export default function ProfileEditor({
     if (!res.ok) toast.error('Erro ao salvar')
     else { toast.success('Perfil atualizado!'); setEditing(false); router.refresh() }
     setSaving(false)
+  }
+
+  async function handleBannerUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingBanner(true)
+    const fd = new FormData()
+    fd.append('file', file)
+    const res = await fetch('/api/profile/banner', { method: 'POST', body: fd })
+    const data = await res.json()
+    if (!res.ok) toast.error(data.error)
+    else { setBannerUrl(data.url); setBannerInput(data.url); toast.success('Banner atualizado!'); router.refresh() }
+    setUploadingBanner(false)
+    e.target.value = ''
+  }
+
+  async function saveBannerUrl() {
+    const url = bannerInput.trim() || null
+    await patchProfile({ banner_url: url })
+    setBannerUrl(bannerInput.trim())
+    setEditingBanner(false)
+    toast.success(url ? 'Banner atualizado!' : 'Banner removido!')
+    router.refresh()
+  }
+
+  async function removeBanner() {
+    await fetch('/api/profile/banner', { method: 'DELETE' })
+    setBannerUrl(''); setBannerInput('')
+    setEditingBanner(false)
+    toast.success('Banner removido!')
+    router.refresh()
   }
 
   async function saveFrame(f: AvatarFrame) {
@@ -256,6 +292,73 @@ export default function ProfileEditor({
               )
             })}
           </div>
+        </div>
+
+        {/* ── Banner do card ── */}
+        <div className="px-6 pb-4 border-t border-white/[0.05] pt-4">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[10px] font-semibold text-[#6666aa] uppercase tracking-wider flex items-center gap-1.5">
+              <Image className="h-3 w-3" /> Banner da daily
+            </p>
+            <p className="text-[10px] text-[#333355]">Aparece no topo do seu card durante a daily</p>
+          </div>
+
+          {/* Preview */}
+          {bannerUrl && (
+            <div className="relative h-20 rounded-xl overflow-hidden mb-3 border border-white/[0.07]">
+              <img src={bannerUrl} alt="banner" className="w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#05050f]/70" />
+            </div>
+          )}
+
+          <AnimatePresence>
+            {editingBanner ? (
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="space-y-2 overflow-hidden">
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Link className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-[#444466]" />
+                    <Input
+                      value={bannerInput}
+                      onChange={e => setBannerInput(e.target.value)}
+                      placeholder="Cole um URL de imagem ou GIF..."
+                      className="neon-input h-9 text-sm pl-7"
+                    />
+                  </div>
+                  <button onClick={saveBannerUrl}
+                    className="flex items-center gap-1.5 px-3 h-9 rounded-lg bg-[#00ff88]/10 border border-[#00ff88]/30 text-[#00ff88] text-xs font-medium hover:bg-[#00ff88]/20 transition-colors shrink-0">
+                    <Check className="h-3.5 w-3.5" /> Salvar
+                  </button>
+                  <button onClick={() => { setEditingBanner(false); setBannerInput(bannerUrl) }}
+                    className="flex items-center px-2.5 h-9 rounded-lg border border-white/[0.08] text-[#444466] hover:text-white transition-colors">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                <p className="text-[10px] text-[#333355]">Ou faça upload de uma imagem/GIF:</p>
+                <div className="flex gap-2">
+                  <button onClick={() => bannerRef.current?.click()} disabled={uploadingBanner}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/[0.1] text-[#6666aa] text-xs hover:text-[#00f0ff] hover:border-[#00f0ff]/30 transition-colors disabled:opacity-50">
+                    {uploadingBanner
+                      ? <span className="h-3 w-3 rounded-full border border-[#00f0ff] border-t-transparent animate-spin" />
+                      : <Camera className="h-3.5 w-3.5" />}
+                    {uploadingBanner ? 'Enviando...' : 'Fazer upload'}
+                  </button>
+                  {bannerUrl && (
+                    <button onClick={removeBanner}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#ff0055]/20 text-[#ff0055]/60 text-xs hover:text-[#ff0055] hover:border-[#ff0055]/40 transition-colors">
+                      <Trash2 className="h-3 w-3" /> Remover banner
+                    </button>
+                  )}
+                </div>
+                <input ref={bannerRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="hidden" onChange={handleBannerUpload} />
+              </motion.div>
+            ) : (
+              <button onClick={() => setEditingBanner(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-white/[0.15] text-[#444466] text-xs hover:text-[#00f0ff] hover:border-[#00f0ff]/30 transition-colors w-full justify-center">
+                <Pencil className="h-3 w-3" />
+                {bannerUrl ? 'Alterar banner' : 'Adicionar banner / GIF'}
+              </button>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* ── Sticker shelf ── */}

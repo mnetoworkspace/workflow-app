@@ -7,7 +7,7 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
   const body = await request.json()
-  const allowed = ['name', 'cargo', 'bio', 'avatar_frame', 'stickers']
+  const allowed = ['name', 'cargo', 'bio', 'avatar_frame', 'stickers', 'banner_url', 'daily_mood']
   const updates: Record<string, unknown> = {}
   for (const key of allowed) {
     if (key in body) updates[key] = body[key]
