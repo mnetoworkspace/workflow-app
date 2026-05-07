@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Task, TaskStatus, PONTOS } from '@/types'
-import { CheckCircle2, Clock, XCircle, ArrowRight, Trash2 } from 'lucide-react'
+import { CheckCircle2, Clock, XCircle, ArrowRight, Trash2, RotateCcw } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { format } from 'date-fns'
@@ -33,6 +33,11 @@ function TaskItem({ task, userId, isAdmin }: { task: Task; userId: string; isAdm
       updates.concluida_em = new Date().toISOString()
       await supabase.from('pontos_historico').insert({ user_id: task.user_id, pontos: PONTOS.TAREFA_CONCLUIDA, motivo: `Tarefa concluída: ${task.titulo}` })
       await supabase.rpc('increment_pontos', { uid: task.user_id, amount: PONTOS.TAREFA_CONCLUIDA })
+    }
+    if (newStatus === 'em_andamento' && task.status === 'concluida') {
+      updates.concluida_em = null
+      await supabase.from('pontos_historico').insert({ user_id: task.user_id, pontos: -PONTOS.TAREFA_CONCLUIDA, motivo: `Tarefa reaberta: ${task.titulo}` })
+      await supabase.rpc('increment_pontos', { uid: task.user_id, amount: -PONTOS.TAREFA_CONCLUIDA })
     }
     if (newStatus === 'postergada') {
       const tomorrow = new Date()
@@ -103,6 +108,21 @@ function TaskItem({ task, userId, isAdmin }: { task: Task; userId: string; isAdm
           </button>
           <button onClick={() => updateStatus('cancelada')} className="h-7 w-7 flex items-center justify-center rounded text-[#ff0055] hover:bg-[#ff0055]/10 transition-colors" title="Cancelar">
             <XCircle className="h-3.5 w-3.5" />
+          </button>
+          <button onClick={deleteTask} className="h-7 w-7 flex items-center justify-center rounded text-[#333355] hover:text-[#6666aa] transition-colors" title="Remover">
+            <Trash2 className="h-3 w-3" />
+          </button>
+        </div>
+      )}
+
+      {canEdit && task.status !== 'em_andamento' && (
+        <div className="flex gap-0.5 shrink-0 transition-opacity md:opacity-0 md:group-hover:opacity-100">
+          <button
+            onClick={() => updateStatus('em_andamento')}
+            className="h-7 w-7 flex items-center justify-center rounded text-[#6666aa] hover:text-[#00f0ff] hover:bg-[#00f0ff]/10 transition-colors"
+            title="Reabrir tarefa"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
           </button>
           <button onClick={deleteTask} className="h-7 w-7 flex items-center justify-center rounded text-[#333355] hover:text-[#6666aa] transition-colors" title="Remover">
             <Trash2 className="h-3 w-3" />
