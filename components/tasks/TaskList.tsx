@@ -3,27 +3,260 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Task, TaskStatus, PONTOS } from '@/types'
-import { CheckCircle2, Clock, XCircle, ArrowRight, Trash2, RotateCcw } from 'lucide-react'
+import {
+  CheckCircle2, Clock, XCircle, ArrowRight, Trash2, RotateCcw,
+  Pencil, Check, X, Calendar, Clock3,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
-import { format } from 'date-fns'
+import { format, parseISO } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
+import { Input } from '@/components/ui/input'
 
 const STATUS = {
-  em_andamento: { label: 'Em andamento', icon: Clock,         color: '#00f0ff', dotClass: 'bg-[#00f0ff]' },
-  concluida:    { label: 'Concluída',    icon: CheckCircle2,  color: '#00ff88', dotClass: 'bg-[#00ff88]' },
-  cancelada:    { label: 'Cancelada',    icon: XCircle,       color: '#ff0055', dotClass: 'bg-[#ff0055]' },
-  postergada:   { label: 'Postergada',   icon: ArrowRight,    color: '#ff8800', dotClass: 'bg-[#ff8800]' },
+  em_andamento: { label: 'Em andamento', icon: Clock,        color: '#00f0ff', dotClass: 'bg-[#00f0ff]' },
+  concluida:    { label: 'Concluída',    icon: CheckCircle2, color: '#00ff88', dotClass: 'bg-[#00ff88]' },
+  cancelada:    { label: 'Cancelada',    icon: XCircle,      color: '#ff0055', dotClass: 'bg-[#ff0055]' },
+  postergada:   { label: 'Postergada',   icon: ArrowRight,   color: '#ff8800', dotClass: 'bg-[#ff8800]' },
 }
 
-function TaskItem({ task, userId, isAdmin }: { task: Task; userId: string; isAdmin?: boolean }) {
-  const [loading, setLoading] = useState(false)
-  const router = useRouter()
+// ── Bottom sheet com detalhes da task ─────────────────────────────────────────
+function TaskSheet({ task: initialTask, onClose, userId, isAdmin }: {
+  task: Task
+  onClose: () => void
+  userId: string
+  isAdmin?: boolean
+}) {
+  const [task, setTask]           = useState(initialTask)
+  const [loading, setLoading]     = useState(false)
+  const [editingTitle, setEditingTitle] = useState(false)
+  const [titleInput, setTitleInput]     = useState(initialTask.titulo)
+  const router  = useRouter()
   const supabase = createClient()
-  const s = STATUS[task.status]
-  const Icon = s.icon
-  const canEdit = task.user_id === userId || isAdmin
+  const canEdit  = task.user_id === userId || isAdmin
+  const s        = STATUS[task.status]
+
+  async function updateStatus(newStatus: TaskStatus) {
+    if (newStatus === task.status || loading) return
+    setLoading(true)
+    const updates: Partial<Task> = { status: newStatus }
+
+    if (newStatus === 'concluida') {
+      updates.concluida_em = new Date().toISOString()
+      await supabase.from('pontos_historico').insert({ user_id: task.user_id, pontos: PONTOS.TAREFA_CONCLUIDA, motivo: `Tarefa concluída: ${task.titulo}` })
+      await supabase.rpc('increment_pontos', { uid: task.user_id, amount: PONTOS.TAREFA_CONCLUIDA })
+    }
+    if (newStatus === 'em_andamento' && task.status === 'concluida') {
+      updates.concluida_em = null
+      await supabase.from('pontos_historico').insert({ user_id: task.user_id, pontos: -PONTOS.TAREFA_CONCLUIDA, motivo: `Tarefa reaberta: ${task.titulo}` })
+      await supabase.rpc('increment_pontos', { uid: task.user_id, amount: -PONTOS.TAREFA_CONCLUIDA })
+    }
+    if (newStatus === 'postergada') {
+      const tomorrow = new Date()
+      tomorrow.setDate(tomorrow.getDate() + 1)
+      await supabase.from('tasks').insert({ user_id: task.user_id, titulo: task.titulo, data: format(tomorrow, 'yyyy-MM-dd'), status: 'em_andamento', origem_task_id: task.id })
+    }
+
+    const { error } = await supabase.from('tasks').update(updates).eq('id', task.id)
+    if (error) { toast.error('Erro ao atualizar'); setLoading(false); return }
+
+    const msgs: Record<TaskStatus, string> = { concluida: '✅ +10 pts', cancelada: 'Cancelada', postergada: '⏳ Para amanhã', em_andamento: 'Reaberta' }
+    toast.success(msgs[newStatus])
+    setTask(prev => ({ ...prev, ...updates }))
+    router.refresh()
+    setLoading(false)
+  }
+
+  async function saveTitle() {
+    const trimmed = titleInput.trim()
+    if (!trimmed) { setEditingTitle(false); setTitleInput(task.titulo); return }
+    if (trimmed === task.titulo) { setEditingTitle(false); return }
+    setLoading(true)
+    const { error } = await supabase.from('tasks').update({ titulo: trimmed }).eq('id', task.id)
+    if (!error) { setTask(prev => ({ ...prev, titulo: trimmed })); router.refresh() }
+    else toast.error('Erro ao salvar')
+    setLoading(false)
+    setEditingTitle(false)
+  }
+
+  async function deleteTask() {
+    setLoading(true)
+    await supabase.from('tasks').delete().eq('id', task.id)
+    toast.success('Tarefa removida')
+    router.refresh()
+    onClose()
+  }
+
+  const formattedData    = format(parseISO(task.data), "d 'de' MMMM", { locale: ptBR })
+  const formattedCreated = format(parseISO(task.created_at), "d MMM 'às' HH:mm", { locale: ptBR })
+  const formattedDone    = task.concluida_em ? format(parseISO(task.concluida_em), "d MMM 'às' HH:mm", { locale: ptBR }) : null
+
+  return (
+    <motion.div
+      className="fixed inset-0 z-50"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.15 }}
+    >
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+
+      {/* Panel */}
+      <motion.div
+        className="absolute bottom-0 left-0 right-0 bg-[#08081c] border-t border-white/10 rounded-t-2xl max-h-[88vh] overflow-y-auto"
+        style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        transition={{ type: 'spring', damping: 32, stiffness: 320 }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Drag handle */}
+        <div className="flex justify-center pt-3 pb-2">
+          <div className="h-1 w-10 rounded-full bg-white/15" />
+        </div>
+
+        <div className="px-5 pb-2 pt-1">
+          {/* Status chip */}
+          <div className="flex items-center gap-2 mb-4">
+            <div className={cn('h-2 w-2 rounded-full shrink-0', s.dotClass)} style={{ boxShadow: `0 0 6px ${s.color}` }} />
+            <span className={cn('text-xs font-medium px-2.5 py-1 rounded-full border', `status-${task.status}`)}>
+              {s.label}
+            </span>
+          </div>
+
+          {/* Title */}
+          {editingTitle ? (
+            <div className="flex items-start gap-2 mb-5">
+              <Input
+                value={titleInput}
+                onChange={e => setTitleInput(e.target.value)}
+                className="neon-input text-sm flex-1"
+                autoFocus
+                onKeyDown={e => {
+                  if (e.key === 'Enter') saveTitle()
+                  if (e.key === 'Escape') { setEditingTitle(false); setTitleInput(task.titulo) }
+                }}
+              />
+              <button onClick={saveTitle} className="h-9 w-9 flex items-center justify-center rounded-lg text-[#00ff88] hover:bg-[#00ff88]/10 transition-colors shrink-0">
+                <Check className="h-4 w-4" />
+              </button>
+              <button onClick={() => { setEditingTitle(false); setTitleInput(task.titulo) }} className="h-9 w-9 flex items-center justify-center rounded-lg text-[#444466] hover:text-white transition-colors shrink-0">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-start gap-2 mb-5">
+              <h2 className={cn(
+                'text-base font-medium leading-snug flex-1',
+                task.status === 'concluida' ? 'line-through text-[#444466]' : 'text-white',
+                task.status === 'cancelada' && 'line-through text-[#333355]',
+              )}>
+                {task.titulo}
+              </h2>
+              {canEdit && (
+                <button
+                  onClick={() => setEditingTitle(true)}
+                  className="h-7 w-7 flex items-center justify-center rounded text-[#333355] hover:text-[#b44bff] transition-colors shrink-0 mt-0.5"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Metadata */}
+          <div className="space-y-2 mb-5 p-3 rounded-xl bg-white/[0.03] border border-white/[0.05]">
+            <div className="flex items-center gap-2.5 text-xs text-[#6666aa]">
+              <Calendar className="h-3.5 w-3.5 shrink-0" />
+              <span>Agendado para <span className="text-[#8888bb]">{formattedData}</span></span>
+            </div>
+            <div className="flex items-center gap-2.5 text-xs text-[#6666aa]">
+              <Clock3 className="h-3.5 w-3.5 shrink-0" />
+              <span>Criado em <span className="text-[#8888bb]">{formattedCreated}</span></span>
+            </div>
+            {formattedDone && (
+              <div className="flex items-center gap-2.5 text-xs text-[#00ff88]/80">
+                <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                <span>Concluído em <span className="text-[#00ff88]">{formattedDone}</span></span>
+              </div>
+            )}
+          </div>
+
+          {/* Action buttons */}
+          {canEdit && (
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              {task.status !== 'concluida' && (
+                <button
+                  onClick={() => updateStatus('concluida')}
+                  disabled={loading}
+                  className="flex items-center justify-center gap-2 py-3 rounded-xl bg-[#00ff88]/10 text-[#00ff88] border border-[#00ff88]/30 text-sm font-medium hover:bg-[#00ff88]/20 transition-colors disabled:opacity-40"
+                >
+                  <CheckCircle2 className="h-4 w-4" /> Concluir
+                </button>
+              )}
+              {task.status !== 'em_andamento' && (
+                <button
+                  onClick={() => updateStatus('em_andamento')}
+                  disabled={loading}
+                  className="flex items-center justify-center gap-2 py-3 rounded-xl bg-[#00f0ff]/10 text-[#00f0ff] border border-[#00f0ff]/30 text-sm font-medium hover:bg-[#00f0ff]/20 transition-colors disabled:opacity-40"
+                >
+                  <RotateCcw className="h-4 w-4" /> Reabrir
+                </button>
+              )}
+              {task.status === 'em_andamento' && (
+                <button
+                  onClick={() => updateStatus('postergada')}
+                  disabled={loading}
+                  className="flex items-center justify-center gap-2 py-3 rounded-xl bg-[#ff8800]/10 text-[#ff8800] border border-[#ff8800]/30 text-sm font-medium hover:bg-[#ff8800]/20 transition-colors disabled:opacity-40"
+                >
+                  <ArrowRight className="h-4 w-4" /> Postergar
+                </button>
+              )}
+              {task.status === 'em_andamento' && (
+                <button
+                  onClick={() => updateStatus('cancelada')}
+                  disabled={loading}
+                  className="flex items-center justify-center gap-2 py-3 rounded-xl bg-[#ff0055]/10 text-[#ff0055] border border-[#ff0055]/30 text-sm font-medium hover:bg-[#ff0055]/20 transition-colors disabled:opacity-40"
+                >
+                  <XCircle className="h-4 w-4" /> Cancelar
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Delete */}
+          {canEdit && (
+            <button
+              onClick={deleteTask}
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[#444466] border border-white/[0.06] hover:text-[#ff0055] hover:border-[#ff0055]/20 hover:bg-[#ff0055]/05 text-sm transition-colors disabled:opacity-40"
+            >
+              <Trash2 className="h-4 w-4" /> Remover tarefa
+            </button>
+          )}
+        </div>
+      </motion.div>
+    </motion.div>
+  )
+}
+
+// ── Task row ──────────────────────────────────────────────────────────────────
+function TaskItem({ task, userId, isAdmin, onOpen }: {
+  task: Task
+  userId: string
+  isAdmin?: boolean
+  onOpen: () => void
+}) {
+  const [loading, setLoading] = useState(false)
+  const router   = useRouter()
+  const supabase = createClient()
+  const s        = STATUS[task.status]
+  const Icon     = s.icon
+  const canEdit  = task.user_id === userId || isAdmin
 
   async function updateStatus(newStatus: TaskStatus) {
     setLoading(true)
@@ -73,7 +306,7 @@ function TaskItem({ task, userId, isAdmin }: { task: Task; userId: string; isAdm
       className={cn(
         'group flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-all duration-200',
         'bg-white/[0.02] border-white/[0.06] hover:border-white/[0.12] hover:bg-white/[0.04]',
-        loading && 'pointer-events-none'
+        loading && 'pointer-events-none',
       )}
     >
       {/* Status dot */}
@@ -86,13 +319,19 @@ function TaskItem({ task, userId, isAdmin }: { task: Task; userId: string; isAdm
 
       <Icon className="h-3.5 w-3.5 shrink-0" style={{ color: s.color }} />
 
-      <span className={cn(
-        'flex-1 text-sm truncate',
-        task.status === 'concluida' ? 'line-through text-[#444466]' : 'text-[#c8c8e8]',
-        task.status === 'cancelada' && 'line-through text-[#333355]'
-      )}>
-        {task.titulo}
-      </span>
+      {/* Clickable title area → opens sheet */}
+      <button
+        onClick={onOpen}
+        className="flex-1 text-left min-w-0"
+      >
+        <span className={cn(
+          'text-sm block truncate',
+          task.status === 'concluida' ? 'line-through text-[#444466]' : 'text-[#c8c8e8]',
+          task.status === 'cancelada' && 'line-through text-[#333355]',
+        )}>
+          {task.titulo}
+        </span>
+      </button>
 
       <span className={cn('text-[10px] px-2 py-0.5 rounded-full border font-medium shrink-0 hidden sm:inline', `status-${task.status}`)}>
         {s.label}
@@ -117,11 +356,7 @@ function TaskItem({ task, userId, isAdmin }: { task: Task; userId: string; isAdm
 
       {canEdit && task.status !== 'em_andamento' && (
         <div className="flex gap-0.5 shrink-0 transition-opacity md:opacity-0 md:group-hover:opacity-100">
-          <button
-            onClick={() => updateStatus('em_andamento')}
-            className="h-7 w-7 flex items-center justify-center rounded text-[#6666aa] hover:text-[#00f0ff] hover:bg-[#00f0ff]/10 transition-colors"
-            title="Reabrir tarefa"
-          >
+          <button onClick={() => updateStatus('em_andamento')} className="h-7 w-7 flex items-center justify-center rounded text-[#6666aa] hover:text-[#00f0ff] hover:bg-[#00f0ff]/10 transition-colors" title="Reabrir tarefa">
             <RotateCcw className="h-3.5 w-3.5" />
           </button>
           <button onClick={deleteTask} className="h-7 w-7 flex items-center justify-center rounded text-[#333355] hover:text-[#6666aa] transition-colors" title="Remover">
@@ -133,7 +368,10 @@ function TaskItem({ task, userId, isAdmin }: { task: Task; userId: string; isAdm
   )
 }
 
+// ── TaskList ──────────────────────────────────────────────────────────────────
 export default function TaskList({ tasks, userId, isAdmin }: { tasks: Task[]; userId: string; isAdmin?: boolean }) {
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
+
   if (tasks.length === 0) {
     return (
       <div className="text-center py-10">
@@ -144,13 +382,35 @@ export default function TaskList({ tasks, userId, isAdmin }: { tasks: Task[]; us
   }
 
   return (
-    <div className="space-y-1.5">
-      <p className="text-[10px] font-semibold text-[#444466] uppercase tracking-wider mb-2">
-        Tarefas ({tasks.length})
-      </p>
-      <AnimatePresence mode="popLayout">
-        {tasks.map(task => <TaskItem key={task.id} task={task} userId={userId} isAdmin={isAdmin} />)}
+    <>
+      <div className="space-y-1.5">
+        <p className="text-[10px] font-semibold text-[#444466] uppercase tracking-wider mb-2">
+          Tarefas ({tasks.length})
+        </p>
+        <AnimatePresence mode="popLayout">
+          {tasks.map(task => (
+            <TaskItem
+              key={task.id}
+              task={task}
+              userId={userId}
+              isAdmin={isAdmin}
+              onOpen={() => setSelectedTask(task)}
+            />
+          ))}
+        </AnimatePresence>
+      </div>
+
+      <AnimatePresence>
+        {selectedTask && (
+          <TaskSheet
+            key={selectedTask.id}
+            task={selectedTask}
+            onClose={() => setSelectedTask(null)}
+            userId={userId}
+            isAdmin={isAdmin}
+          />
+        )}
       </AnimatePresence>
-    </div>
+    </>
   )
 }
