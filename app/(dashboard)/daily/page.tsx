@@ -18,12 +18,18 @@ export default async function DailyPage() {
     { data: todayTasks },
     { data: yesterdayTasks },
     { data: impedimentos },
+    { data: faltas },
+    { data: badges },
+    { data: badgeTypes },
   ] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', user.id).single(),
     supabase.from('profiles').select('*').order('name'),
     supabase.from('tasks').select('*, profile:profiles(*)').eq('data', today),
     supabase.from('tasks').select('*, profile:profiles(*)').eq('data', yesterday),
     supabase.from('impedimentos').select('*, profile:profiles(*)').eq('data', today),
+    supabase.from('faltas').select('*').eq('data', today),
+    supabase.from('badges').select('*'),
+    supabase.from('badge_types').select('*'),
   ])
 
   if (!currentProfile) redirect('/login')
@@ -35,7 +41,12 @@ export default async function DailyPage() {
       <div className="mb-5 md:mb-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-white">Daily <span className="text-[#6666aa] font-normal">—</span> <span style={{ background: 'linear-gradient(90deg,#b44bff,#00f0ff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Squad Raiz</span></h1>
+            <h1 className="text-2xl font-bold text-white">
+              Daily <span className="text-[#6666aa] font-normal">—</span>{' '}
+              <span style={{ background: 'linear-gradient(90deg,#b44bff,#00f0ff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                Squad Raiz
+              </span>
+            </h1>
             <p className="text-[#6666aa] text-sm mt-1 capitalize">{dataFormatada}</p>
           </div>
         </div>
@@ -46,6 +57,9 @@ export default async function DailyPage() {
         todayTasks={todayTasks ?? []}
         yesterdayTasks={yesterdayTasks ?? []}
         impedimentos={impedimentos ?? []}
+        faltas={faltas ?? []}
+        badges={badges ?? []}
+        badgeTypes={badgeTypes ?? []}
         currentProfile={currentProfile}
         today={today}
         yesterday={yesterday}

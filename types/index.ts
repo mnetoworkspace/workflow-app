@@ -91,6 +91,14 @@ export interface PontosHistorico {
   created_at: string
 }
 
+export interface Falta {
+  id: string
+  user_id: string
+  data: string
+  created_by: string | null
+  created_at: string
+}
+
 export interface DailyConfig {
   id: string
   dia_semana: number
@@ -129,14 +137,17 @@ export function getProximoNivel(pontos: number): { nome: string; pontosNecessari
   return { nome: 'Colaborador Raiz', pontosNecessarios: 100 }
 }
 
-export const BADGE_INFO: Record<BadgeTipo, { label: string; descricao: string; emoji: string }> = {
-  sem_frescura: { label: 'Sem Frescura', descricao: '7 dias sem impedimentos', emoji: '🧊' },
-  nao_tem_amanha: { label: 'Não Tem Amanhã', descricao: 'Semana inteira sem postergar', emoji: '⚡' },
-  madrugador: { label: 'Madrugador', descricao: 'Registrou tarefas antes das 8h por 5 dias', emoji: '🌅' },
-  inabalavel: { label: 'Inabalável', descricao: 'Streak de 30 dias', emoji: '🏔️' },
-  consistente: { label: 'Consistente', descricao: 'Participou de 50 dailies', emoji: '📅' },
-  limpinho: { label: 'Limpinho', descricao: '100 tarefas concluídas', emoji: '✨' },
-  velocista: { label: 'Velocista', descricao: 'Concluiu todas as tarefas do dia antes das 12h', emoji: '🚀' },
+export const BADGE_INFO: Record<string, { label: string; descricao: string; emoji: string }> = {
+  sem_frescura:    { label: 'Sem Frescura',     descricao: '7 dias sem impedimentos',                        emoji: '🧊' },
+  nao_tem_amanha:  { label: 'Não Tem Amanhã',   descricao: 'Semana inteira sem postergar',                   emoji: '⚡' },
+  madrugador:      { label: 'Madrugador',        descricao: 'Registrou tarefas antes das 8h por 5 dias',     emoji: '🌅' },
+  inabalavel:      { label: 'Inabalável',        descricao: 'Streak de 30 dias',                             emoji: '🏔️' },
+  consistente:     { label: 'Consistente',       descricao: 'Participou de 50 dailies',                      emoji: '📅' },
+  limpinho:        { label: 'Limpinho',          descricao: '100 tarefas concluídas',                        emoji: '✨' },
+  velocista:       { label: 'Velocista',         descricao: 'Concluiu todas as tarefas do dia antes das 12h', emoji: '🚀' },
+  sempre_presente: { label: 'Sempre Presente',   descricao: '30 dias seguidos sem faltar à daily',           emoji: '🎯' },
+  semana_perfeita: { label: 'Semana Perfeita',   descricao: 'Presente todos os dias da semana',              emoji: '⭐' },
+  fantasma:        { label: 'Fantasma',          descricao: 'Faltou 5 vezes no mês',                         emoji: '👻' },
 }
 
 export const PONTOS = {
