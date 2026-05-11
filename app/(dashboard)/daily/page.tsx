@@ -2,6 +2,8 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import Link from 'next/link'
+import { History } from 'lucide-react'
 import DailyBoard from '@/components/daily/DailyBoard'
 
 export default async function DailyPage() {
@@ -49,6 +51,13 @@ export default async function DailyPage() {
             </h1>
             <p className="text-[#6666aa] text-sm mt-1 capitalize">{dataFormatada}</p>
           </div>
+          <Link
+            href="/daily/historico"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-[#6666aa] border border-white/[0.07] hover:text-white hover:border-white/[0.15] hover:bg-white/[0.04] transition-all"
+          >
+            <History className="h-3.5 w-3.5" />
+            Histórico
+          </Link>
         </div>
       </div>
 
