@@ -2,22 +2,20 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Users, Trophy, User, Shield } from 'lucide-react'
-import { Profile } from '@/types'
+import { LayoutDashboard, Users, User, Building2, FolderKanban } from 'lucide-react'
 import { motion } from 'framer-motion'
 
 const baseItems = [
-  { href: '/dashboard', label: 'Tarefas', icon: LayoutDashboard, color: '#00f0ff' },
-  { href: '/daily',     label: 'Daily',   icon: Users,           color: '#b44bff' },
-  { href: '/ranking',   label: 'Ranking', icon: Trophy,          color: '#ff8800' },
-  { href: '/perfil',    label: 'Perfil',  icon: User,            color: '#00ff88' },
+  { href: '/dashboard', label: 'Tarefas',  icon: LayoutDashboard, color: '#00f0ff' },
+  { href: '/daily',     label: 'Daily',    icon: Users,           color: '#b44bff' },
+  { href: '/producao',  label: 'Produção', icon: FolderKanban,    color: '#00ff88' },
+  { href: '/clientes',  label: 'Clientes', icon: Building2,       color: '#ff0080' },
+  { href: '/perfil',    label: 'Perfil',   icon: User,            color: '#00ff88' },
 ]
 
-export default function MobileNav({ profile }: { profile: Profile }) {
+export default function MobileNav() {
   const pathname = usePathname()
-  const items = profile.role === 'admin'
-    ? [...baseItems, { href: '/admin', label: 'Admin', icon: Shield, color: '#b44bff' }]
-    : baseItems
+  const items = baseItems
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden">
@@ -27,7 +25,7 @@ export default function MobileNav({ profile }: { profile: Profile }) {
 
         <div className="flex items-center h-16">
           {items.map(({ href, label, icon: Icon, color }) => {
-            const isActive = pathname === href
+            const isActive = pathname === href || pathname.startsWith(href + '/')
             return (
               <Link
                 key={href}

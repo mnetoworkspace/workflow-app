@@ -40,6 +40,9 @@ yarn-error.log*
 /scripts/
 supacodes.txt
 
+# backups de dados
+backup-*.json
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

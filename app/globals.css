@@ -121,6 +121,7 @@
 .text-glow-cyan  { text-shadow: 0 0 12px rgba(0,240,255,0.8), 0 0 30px rgba(0,240,255,0.4); }
 .text-glow-purple{ text-shadow: 0 0 12px rgba(180,75,255,0.8), 0 0 30px rgba(180,75,255,0.4); }
 .text-glow-green { text-shadow: 0 0 12px rgba(0,255,136,0.8), 0 0 30px rgba(0,255,136,0.4); }
+.text-glow-fonil { text-shadow: 0 0 12px rgba(111,242,3,0.7), 0 0 30px rgba(195,246,1,0.35); }
 
 /* ── Animated background ─────────────────────── */
 .tech-bg {

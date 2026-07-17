@@ -50,7 +50,7 @@ export default function InviteForm() {
 
   async function copyCredentials() {
     if (!created) return
-    const text = `Acesso DailyFlux\nEmail: ${created.email}\nSenha: ${created.password}\nhttps://www.dailyflux.site/login`
+    const text = `Acesso Fonil Group\nEmail: ${created.email}\nSenha: ${created.password}\nhttps://www.dailyflux.site/login`
     await navigator.clipboard.writeText(text)
     setCopied(true)
     setTimeout(() => setCopied(false), 2500)

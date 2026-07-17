@@ -3,15 +3,13 @@
 import { useState, useMemo, useCallback } from 'react'
 import { Profile, Task, Impedimento, Falta, AvatarFrame } from '@/types'
 import { createClient } from '@/lib/supabase/client'
-import {
-  format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval,
-  getDay, addMonths, subMonths, subDays, isToday, isSameMonth,
-} from 'date-fns'
+import { format, parseISO, subDays } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import {
-  ChevronLeft, ChevronRight, Users, CheckCircle2, AlertTriangle,
+  Users, CheckCircle2, AlertTriangle, CalendarDays,
   UserX, Clock, ArrowRight, XCircle,
 } from 'lucide-react'
+import DateRangeModal, { DateRange, EMPTY_RANGE } from '@/components/ui/date-range-modal'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -22,116 +20,6 @@ const FRAME_HEX: Record<string, string> = {
   green: '#00ff88', pink: '#ff0080', gold: '#ffe600', rainbow: '#b44bff',
 }
 function frameClass(f: AvatarFrame) { return f && f !== 'none' ? `frame-${f}` : '' }
-
-const WEEK_DAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
-
-// ── Calendário ────────────────────────────────────────────────────────────────
-function CalendarGrid({ markedDates, selectedDate, onSelect, currentMonth, onMonthChange }: {
-  markedDates: Set<string>
-  selectedDate: string | null
-  onSelect: (date: string) => void
-  currentMonth: Date
-  onMonthChange: (d: Date) => void
-}) {
-  const today    = new Date()
-  const firstDay = startOfMonth(currentMonth)
-  const days     = eachDayOfInterval({ start: firstDay, end: endOfMonth(currentMonth) })
-  const offset   = (getDay(firstDay) + 6) % 7  // Monday-first
-  const isCurrentMonth = isSameMonth(currentMonth, today)
-  const monthLabel     = format(currentMonth, "MMMM 'de' yyyy", { locale: ptBR })
-
-  return (
-    <div className="neon-card rounded-2xl border border-white/[0.07] p-4 md:p-5">
-      {/* Month nav */}
-      <div className="flex items-center justify-between mb-4">
-        <button
-          onClick={() => onMonthChange(subMonths(currentMonth, 1))}
-          className="h-8 w-8 flex items-center justify-center rounded-lg text-[#6666aa] hover:text-white hover:bg-white/[0.06] transition-colors"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </button>
-        <h2 className="text-sm font-semibold text-white capitalize">{monthLabel}</h2>
-        <button
-          onClick={() => onMonthChange(addMonths(currentMonth, 1))}
-          disabled={isCurrentMonth}
-          className="h-8 w-8 flex items-center justify-center rounded-lg text-[#6666aa] hover:text-white hover:bg-white/[0.06] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-        >
-          <ChevronRight className="h-4 w-4" />
-        </button>
-      </div>
-
-      {/* Week day headers */}
-      <div className="grid grid-cols-7 mb-1">
-        {WEEK_DAYS.map(d => (
-          <div key={d} className="text-center text-[10px] font-medium text-[#444466] py-1">{d}</div>
-        ))}
-      </div>
-
-      {/* Day grid */}
-      <div className="grid grid-cols-7 gap-y-1">
-        {Array.from({ length: offset }).map((_, i) => <div key={`empty-${i}`} />)}
-
-        {days.map(day => {
-          const dateStr      = format(day, 'yyyy-MM-dd')
-          const hasData      = markedDates.has(dateStr)
-          const isSelected   = selectedDate === dateStr
-          const isTodayDate  = isToday(day)
-          // Mon=0..Sun=6 in our Monday-first scheme
-          const weekdayIdx   = (getDay(day) + 6) % 7
-          const isWeekendDay = weekdayIdx >= 5
-
-          return (
-            <button
-              key={dateStr}
-              onClick={() => hasData && onSelect(dateStr)}
-              disabled={!hasData}
-              className={cn(
-                'relative flex flex-col items-center justify-center py-1.5 rounded-xl transition-all text-sm',
-                hasData && !isSelected && 'hover:bg-white/[0.06] cursor-pointer',
-                isSelected && 'bg-gradient-to-b from-[#b44bff]/25 to-[#00f0ff]/10 cursor-pointer',
-                isTodayDate && !isSelected && 'ring-1 ring-[#00f0ff]/25',
-                !hasData && 'cursor-default',
-              )}
-            >
-              <span className={cn(
-                'text-sm font-medium leading-none',
-                isSelected   ? 'text-white'     :
-                hasData      ? 'text-[#c8c8e8]' :
-                isWeekendDay ? 'text-[#2a2a44]' : 'text-[#3a3a55]',
-              )}>
-                {format(day, 'd')}
-              </span>
-              {/* Dot marker */}
-              {hasData && (
-                <div className={cn(
-                  'h-1 w-1 rounded-full mt-1',
-                  isSelected ? 'bg-[#b44bff]' : 'bg-[#00f0ff]',
-                )} />
-              )}
-            </button>
-          )
-        })}
-      </div>
-
-      {/* Legend */}
-      <div className="flex items-center gap-3 mt-4 pt-3 border-t border-white/[0.05]">
-        <div className="flex items-center gap-1.5 text-[10px] text-[#444466]">
-          <div className="h-1.5 w-1.5 rounded-full bg-[#00f0ff]" />
-          Com daily
-        </div>
-        <div className="flex items-center gap-1.5 text-[10px] text-[#444466]">
-          <div className="h-1.5 w-1.5 rounded-full bg-[#b44bff]" />
-          Selecionado
-        </div>
-        {/* Today indicator */}
-        <div className="flex items-center gap-1.5 text-[10px] text-[#444466]">
-          <div className="h-3 w-3 rounded ring-1 ring-[#00f0ff]/25" />
-          Hoje
-        </div>
-      </div>
-    </div>
-  )
-}
 
 // ── Stats do dia ──────────────────────────────────────────────────────────────
 function DaySummary({ profiles, tasks, impedimentos, faltas }: {
@@ -151,6 +39,40 @@ function DaySummary({ profiles, tasks, impedimentos, faltas }: {
     { label: 'Concluídas',   value: `${concluidas}/${total}`,          icon: CheckCircle2,  color: '#00ff88' },
     { label: 'Ausentes',     value: ausentes,                           icon: UserX,         color: '#ff0055' },
     { label: 'Impedimentos', value: withImpedimento,                    icon: AlertTriangle, color: '#ff8800' },
+  ]
+
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      {stats.map(({ label, value, icon: Icon, color }) => (
+        <div key={label} className="neon-card rounded-xl border border-white/[0.07] p-3 flex items-center gap-3">
+          <div className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${color}15` }}>
+            <Icon className="h-4 w-4" style={{ color }} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-lg font-bold font-mono text-white leading-none">{value}</p>
+            <p className="text-[10px] text-[#444466] mt-0.5">{label}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ── Stats de um período (range) ───────────────────────────────────────────────
+function PeriodSummary({ tasks, impedimentos, faltas, diasComDaily }: {
+  tasks: Task[]
+  impedimentos: Impedimento[]
+  faltas: Falta[]
+  diasComDaily: number
+}) {
+  const total      = tasks.length
+  const concluidas = tasks.filter(t => t.status === 'concluida').length
+
+  const stats = [
+    { label: 'Dias com daily', value: diasComDaily,                      icon: CalendarDays,  color: '#00f0ff' },
+    { label: 'Concluídas',     value: `${concluidas}/${total}`,          icon: CheckCircle2,  color: '#00ff88' },
+    { label: 'Faltas',         value: faltas.length,                     icon: UserX,         color: '#ff0055' },
+    { label: 'Impedimentos',   value: impedimentos.filter(i => i.descricao).length, icon: AlertTriangle, color: '#ff8800' },
   ]
 
   return (
@@ -342,8 +264,8 @@ function HistoricoMemberCard({ profile, anteriores, atuais, impedimento, faltou 
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-interface DayData {
-  todayTasks: Task[]
+interface PeriodData {
+  tasks: Task[]
   yesterdayTasks: Task[]
   impedimentos: Impedimento[]
   faltas: Falta[]
@@ -355,65 +277,84 @@ export default function HistoricoBoard({ profiles, markedDates, currentProfile }
   markedDates: string[]
   currentProfile: Profile
 }) {
-  const [currentMonth, setCurrentMonth] = useState(new Date())
-  const [selectedDate, setSelectedDate] = useState<string | null>(null)
-  const [dayData, setDayData]           = useState<DayData | null>(null)
-  const [loading, setLoading]           = useState(false)
+  const [range, setRange]     = useState<DateRange>(EMPTY_RANGE)
+  const [data, setData]       = useState<PeriodData | null>(null)
+  const [loading, setLoading] = useState(false)
 
   const markedSet = useMemo(() => new Set(markedDates), [markedDates])
+  const isSingle  = !!range.from && (range.to === null || range.from === range.to)
 
-  const handleSelectDate = useCallback(async (date: string) => {
-    if (selectedDate === date) {
-      setSelectedDate(null)
-      setDayData(null)
-      return
-    }
-    setSelectedDate(date)
-    setDayData(null)
+  const handleSelect = useCallback(async (r: DateRange) => {
+    setRange(r)
+    setData(null)
+    if (!r.from) return
+
+    const from   = r.from
+    const to     = r.to ?? r.from
+    const single = from === to
     setLoading(true)
 
-    const yesterday = format(subDays(parseISO(date), 1), 'yyyy-MM-dd')
+    const yesterday = format(subDays(parseISO(from), 1), 'yyyy-MM-dd')
     const supabase  = createClient()
 
     const [
-      { data: todayTasks },
+      { data: tasks },
       { data: yesterdayTasks },
       { data: impedimentos },
       { data: faltas },
     ] = await Promise.all([
-      supabase.from('tasks').select('*').eq('data', date),
-      supabase.from('tasks').select('*').eq('data', yesterday),
-      supabase.from('impedimentos').select('*').eq('data', date),
-      supabase.from('faltas').select('*').eq('data', date),
+      supabase.from('tasks').select('*').gte('data', from).lte('data', to),
+      single
+        ? supabase.from('tasks').select('*').eq('data', yesterday)
+        : Promise.resolve({ data: [] as Task[] }),
+      supabase.from('impedimentos').select('*').gte('data', from).lte('data', to),
+      supabase.from('faltas').select('*').gte('data', from).lte('data', to),
     ])
 
-    setDayData({
-      todayTasks:     todayTasks     ?? [],
+    setData({
+      tasks:          tasks          ?? [],
       yesterdayTasks: yesterdayTasks ?? [],
       impedimentos:   impedimentos   ?? [],
       faltas:         faltas         ?? [],
     })
     setLoading(false)
-  }, [selectedDate])
+  }, [])
 
-  const formattedSelected = selectedDate
-    ? format(parseISO(selectedDate), "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })
+  const titulo = range.from
+    ? isSingle
+      ? format(parseISO(range.from), "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })
+      : `${format(parseISO(range.from), "d 'de' MMM", { locale: ptBR })} – ${format(parseISO(range.to!), "d 'de' MMM 'de' yyyy", { locale: ptBR })}`
     : null
+
+  const diasComDaily = range.from
+    ? markedDates.filter(d => d >= range.from! && d <= (range.to ?? range.from!)).length
+    : 0
 
   return (
     <div className="space-y-6">
-      <CalendarGrid
-        markedDates={markedSet}
-        selectedDate={selectedDate}
-        onSelect={handleSelectDate}
-        currentMonth={currentMonth}
-        onMonthChange={setCurrentMonth}
-      />
+      {/* Seletor único de data/período */}
+      <div className="neon-card rounded-2xl border border-white/[0.07] p-4 md:p-5 flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <p className="text-sm font-medium text-white">Escolha um dia ou um período</p>
+          <p className="text-[11px] text-[#444466] mt-0.5">
+            Dois cliques na mesma data = dia único · duas datas diferentes = período
+          </p>
+        </div>
+        <DateRangeModal
+          value={range}
+          onChange={handleSelect}
+          markedDates={markedSet}
+          onlyMarked
+          disableFuture
+          title="Histórico de dailies"
+          placeholder="Selecionar data ou período"
+        />
+      </div>
 
       <AnimatePresence mode="wait">
-        {selectedDate && (
+        {range.from && (
           <motion.div
-            key={selectedDate}
+            key={`${range.from}-${range.to}`}
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
@@ -422,8 +363,10 @@ export default function HistoricoBoard({ profiles, markedDates, currentProfile }
           >
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-base font-semibold text-white capitalize">{formattedSelected}</h2>
-                <p className="text-xs text-[#444466] mt-0.5">Snapshot da daily</p>
+                <h2 className="text-base font-semibold text-white capitalize">{titulo}</h2>
+                <p className="text-xs text-[#444466] mt-0.5">
+                  {isSingle ? 'Snapshot da daily' : 'Resumo do período'}
+                </p>
               </div>
             </div>
 
@@ -431,14 +374,23 @@ export default function HistoricoBoard({ profiles, markedDates, currentProfile }
               <div className="flex items-center justify-center py-20">
                 <div className="h-6 w-6 rounded-full border-2 border-[#00f0ff] border-t-transparent animate-spin" />
               </div>
-            ) : dayData ? (
+            ) : data ? (
               <>
-                <DaySummary
-                  profiles={profiles}
-                  tasks={dayData.todayTasks}
-                  impedimentos={dayData.impedimentos}
-                  faltas={dayData.faltas}
-                />
+                {isSingle ? (
+                  <DaySummary
+                    profiles={profiles}
+                    tasks={data.tasks}
+                    impedimentos={data.impedimentos}
+                    faltas={data.faltas}
+                  />
+                ) : (
+                  <PeriodSummary
+                    tasks={data.tasks}
+                    impedimentos={data.impedimentos}
+                    faltas={data.faltas}
+                    diasComDaily={diasComDaily}
+                  />
+                )}
 
                 <div className="grid gap-4 md:grid-cols-2">
                   {profiles.map((profile, i) => (
@@ -450,10 +402,10 @@ export default function HistoricoBoard({ profiles, markedDates, currentProfile }
                     >
                       <HistoricoMemberCard
                         profile={profile}
-                        anteriores={dayData.yesterdayTasks.filter(t => t.user_id === profile.id)}
-                        atuais={dayData.todayTasks.filter(t => t.user_id === profile.id)}
-                        impedimento={dayData.impedimentos.find(im => im.user_id === profile.id) ?? null}
-                        faltou={dayData.faltas.some(f => f.user_id === profile.id)}
+                        anteriores={isSingle ? data.yesterdayTasks.filter(t => t.user_id === profile.id) : []}
+                        atuais={data.tasks.filter(t => t.user_id === profile.id)}
+                        impedimento={isSingle ? data.impedimentos.find(im => im.user_id === profile.id) ?? null : null}
+                        faltou={isSingle && data.faltas.some(f => f.user_id === profile.id)}
                       />
                     </motion.div>
                   ))}

@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
-import { Eye, EyeOff, Zap } from 'lucide-react'
+import { Eye, EyeOff } from 'lucide-react'
 import { motion } from 'framer-motion'
 
 export default function LoginPage() {
@@ -44,18 +44,23 @@ export default function LoginPage() {
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.2, type: 'spring' }}
-            className="inline-flex items-center gap-2 mb-3"
+            className="inline-flex flex-col items-center gap-3 mb-3"
           >
-            <Zap className="h-7 w-7 text-[#00f0ff]" style={{ filter: 'drop-shadow(0 0 12px #00f0ff)' }} />
-            <span className="text-3xl font-bold text-white tracking-widest text-glow-cyan">DAILYFLUX</span>
+            <img
+              src="/logo-fonil.webp"
+              alt="Fonil Group"
+              className="h-28 w-auto"
+              style={{ filter: 'drop-shadow(0 0 24px rgba(111,242,3,0.25))' }}
+            />
+            <span className="text-xl font-bold text-white tracking-[0.35em] text-glow-fonil">GROUP</span>
           </motion.div>
-          <p className="text-[#444466] text-xs tracking-[0.3em] uppercase">Squad Raiz · Atividades e Dailies</p>
+          <p className="text-[#444466] text-xs tracking-[0.3em] uppercase">Atividades e Dailies</p>
         </div>
 
         {/* Card */}
-        <div className="neon-card rounded-2xl p-6 border border-[#00f0ff]/15" style={{ boxShadow: '0 0 40px rgba(0,240,255,0.06), 0 0 80px rgba(180,75,255,0.04)' }}>
+        <div className="neon-card rounded-2xl p-6 border border-[#6ff203]/15" style={{ boxShadow: '0 0 40px rgba(111,242,3,0.06), 0 0 80px rgba(180,75,255,0.04)' }}>
           {/* Top accent line */}
-          <div className="h-px bg-gradient-to-r from-transparent via-[#00f0ff]/60 to-transparent -mx-6 mb-6" />
+          <div className="h-px bg-gradient-to-r from-transparent via-[#6ff203]/60 to-transparent -mx-6 mb-6" />
 
           <h2 className="text-lg font-semibold text-white mb-1">Acessar</h2>
           <p className="text-[#444466] text-xs mb-5">Entre para gerenciar suas dailies</p>
@@ -100,8 +105,8 @@ export default function LoginPage() {
               disabled={loading}
               whileHover={{ scale: 1.01 }}
               whileTap={{ scale: 0.98 }}
-              className="w-full h-10 rounded-lg text-sm font-semibold bg-[#00f0ff] text-[#05050f] hover:bg-[#00d4e0] transition-colors disabled:opacity-50 mt-2"
-              style={{ boxShadow: '0 0 20px rgba(0,240,255,0.3)' }}
+              className="w-full h-10 rounded-lg text-sm font-semibold text-[#05050f] transition-all disabled:opacity-50 mt-2 hover:brightness-110"
+              style={{ background: 'linear-gradient(90deg, #6ff203, #c3f601)', boxShadow: '0 0 20px rgba(111,242,3,0.3)' }}
             >
               {loading
                 ? <span className="flex items-center justify-center gap-2">

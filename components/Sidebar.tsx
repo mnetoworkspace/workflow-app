@@ -6,13 +6,15 @@ import { createClient } from '@/lib/supabase/client'
 import { Profile, getNivel, AvatarFrame } from '@/types'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { cn } from '@/lib/utils'
-import { LayoutDashboard, Users, Trophy, User, LogOut, Zap, Shield } from 'lucide-react'
+import { LayoutDashboard, Users, Trophy, User, LogOut, Shield, Building2, FolderKanban } from 'lucide-react'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
 
 const navItems = [
   { href: '/dashboard', label: 'Minhas Tarefas', icon: LayoutDashboard, color: 'cyan' },
   { href: '/daily',     label: 'Daily',          icon: Users,           color: 'purple' },
+  { href: '/producao',  label: 'Produção',       icon: FolderKanban,    color: 'green' },
+  { href: '/clientes',  label: 'Clientes',       icon: Building2,       color: 'pink' },
   { href: '/ranking',   label: 'Ranking',        icon: Trophy,          color: 'orange' },
   { href: '/perfil',    label: 'Perfil',         icon: User,            color: 'green' },
 ]
@@ -55,7 +57,7 @@ export default function Sidebar({ profile }: { profile: Profile }) {
   return (
     <aside className="hidden md:flex w-64 flex-col border-r border-white/[0.06] bg-[#06061a] relative overflow-hidden">
       {/* Ambient glow top */}
-      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#00f0ff]/40 to-transparent" />
+      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#6ff203]/40 to-transparent" />
 
       {/* Logo */}
       <div className="p-6 border-b border-white/[0.06]">
@@ -65,11 +67,14 @@ export default function Sidebar({ profile }: { profile: Profile }) {
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.4 }}
         >
-          <div className="relative">
-            <Zap className="h-6 w-6 text-[#00f0ff]" style={{ filter: 'drop-shadow(0 0 8px #00f0ff)' }} />
-          </div>
+          <img
+            src="/fonil-icon.webp"
+            alt="Fonil"
+            className="h-7 w-7 rounded-lg shrink-0"
+            style={{ filter: 'drop-shadow(0 0 8px rgba(111,242,3,0.5))' }}
+          />
           <div>
-            <span className="font-bold text-white text-lg tracking-widest text-glow-cyan">DAILYFLUX</span>
+            <span className="font-bold text-white text-lg tracking-widest text-glow-fonil">FONIL GROUP</span>
           </div>
         </motion.div>
       </div>
@@ -77,7 +82,7 @@ export default function Sidebar({ profile }: { profile: Profile }) {
       {/* Nav */}
       <nav className="flex-1 p-4 space-y-1">
         {navItems.map(({ href, label, icon: Icon, color }, i) => {
-          const isActive = pathname === href
+          const isActive = pathname === href || pathname.startsWith(href + '/')
           return (
             <motion.div
               key={href}

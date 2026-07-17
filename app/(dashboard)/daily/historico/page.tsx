@@ -42,8 +42,8 @@ export default async function HistoricoPage() {
             <h1 className="text-2xl font-bold text-white">
               Histórico{' '}
               <span className="text-[#6666aa] font-normal">—</span>{' '}
-              <span style={{ background: 'linear-gradient(90deg,#b44bff,#00f0ff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                Squad Raiz
+              <span style={{ background: 'linear-gradient(90deg,#6ff203,#c3f601)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                Fonil Group
               </span>
             </h1>
             <p className="text-[#6666aa] text-sm mt-1">Dailies anteriores</p>

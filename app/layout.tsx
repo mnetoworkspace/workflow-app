@@ -6,12 +6,12 @@ import { Toaster } from '@/components/ui/sonner'
 const geist = Geist({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'DailyFlux — Squad Raiz',
-  description: 'Acompanhamento de atividades e fluxo de dailies da Squad Raiz',
+  title: 'Fonil Group',
+  description: 'Acompanhamento de atividades e fluxo de dailies da Fonil Group',
   manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
-    title: 'DailyFlux',
+    title: 'Fonil Group',
     statusBarStyle: 'black-translucent',
     startupImage: [
       // iPhone 14 Pro Max

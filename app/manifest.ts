@@ -2,9 +2,9 @@ import type { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'DailyFlux',
-    short_name: 'DailyFlux',
-    description: 'Acompanhamento de atividades e fluxo de dailies da Squad Raiz',
+    name: 'Fonil Group',
+    short_name: 'Fonil',
+    description: 'Acompanhamento de atividades e fluxo de dailies da Fonil Group',
     start_url: '/dashboard',
     scope: '/',
     display: 'standalone',
@@ -36,7 +36,7 @@ export default function manifest(): MetadataRoute.Manifest {
       {
         name: 'Daily',
         short_name: 'Daily',
-        description: 'Ver o quadro de daily do squad',
+        description: 'Ver o quadro de daily do time',
         url: '/daily',
         icons: [{ src: '/icon', sizes: '512x512' }],
       },

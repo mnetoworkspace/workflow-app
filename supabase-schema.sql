@@ -246,23 +246,189 @@ DO $$
 BEGIN
   -- Tenta adicionar as tabelas à publicação se elas ainda não existirem lá
   IF NOT EXISTS (
-    SELECT 1 FROM pg_publication_tables 
+    SELECT 1 FROM pg_publication_tables
     WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'tasks'
   ) THEN
     ALTER PUBLICATION supabase_realtime ADD TABLE tasks;
   END IF;
 
   IF NOT EXISTS (
-    SELECT 1 FROM pg_publication_tables 
+    SELECT 1 FROM pg_publication_tables
     WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'impedimentos'
   ) THEN
     ALTER PUBLICATION supabase_realtime ADD TABLE impedimentos;
   END IF;
 
   IF NOT EXISTS (
-    SELECT 1 FROM pg_publication_tables 
+    SELECT 1 FROM pg_publication_tables
     WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'profiles'
   ) THEN
     ALTER PUBLICATION supabase_realtime ADD TABLE profiles;
   END IF;
 END $$;
+
+-- ============================================
+-- CLIENTES & PRODUÇÃO (central operacional)
+-- ============================================
+
+-- Clientes
+CREATE TABLE IF NOT EXISTS clientes (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  nome TEXT NOT NULL,
+  logo_url TEXT,
+  status TEXT NOT NULL DEFAULT 'ativo' CHECK (status IN ('ativo', 'pausado', 'encerrado')),
+  segmento TEXT,
+  site TEXT,
+  instagram TEXT,
+  observacoes TEXT,
+  origem TEXT NOT NULL DEFAULT 'direto',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Contatos do cliente
+CREATE TABLE IF NOT EXISTS cliente_contatos (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  cliente_id UUID REFERENCES clientes(id) ON DELETE CASCADE NOT NULL,
+  nome TEXT NOT NULL,
+  cargo TEXT,
+  telefone TEXT,
+  email TEXT,
+  principal BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Projetos (serviços recorrentes ou trabalhos pontuais do cliente)
+CREATE TABLE IF NOT EXISTS projetos (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  cliente_id UUID REFERENCES clientes(id) ON DELETE CASCADE NOT NULL,
+  nome TEXT NOT NULL,
+  descricao TEXT,
+  tipo TEXT NOT NULL DEFAULT 'pontual' CHECK (tipo IN ('recorrente', 'pontual')),
+  status TEXT NOT NULL DEFAULT 'ativo' CHECK (status IN ('ativo', 'pausado', 'concluido', 'cancelado')),
+  responsavel_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  prazo DATE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Entregas (cards do kanban de produção)
+CREATE TABLE IF NOT EXISTS entregas (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  projeto_id UUID REFERENCES projetos(id) ON DELETE CASCADE NOT NULL,
+  titulo TEXT NOT NULL,
+  descricao TEXT,
+  status TEXT NOT NULL DEFAULT 'backlog' CHECK (status IN ('backlog', 'em_producao', 'revisao', 'entregue', 'cancelada')),
+  prioridade TEXT NOT NULL DEFAULT 'media' CHECK (prioridade IN ('baixa', 'media', 'alta', 'urgente')),
+  responsavel_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  prazo DATE,
+  ordem INTEGER NOT NULL DEFAULT 0,
+  entregue_em TIMESTAMPTZ,
+  created_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Vínculo das tasks da daily com produção
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS cliente_id UUID REFERENCES clientes(id) ON DELETE SET NULL;
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS entrega_id UUID REFERENCES entregas(id) ON DELETE SET NULL;
+
+-- RLS
+ALTER TABLE clientes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cliente_contatos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE projetos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE entregas ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+    -- Clientes
+    DROP POLICY IF EXISTS "clientes_select" ON clientes;
+    DROP POLICY IF EXISTS "clientes_all" ON clientes;
+    -- Cliente contatos
+    DROP POLICY IF EXISTS "cliente_contatos_select" ON cliente_contatos;
+    DROP POLICY IF EXISTS "cliente_contatos_all" ON cliente_contatos;
+    -- Projetos
+    DROP POLICY IF EXISTS "projetos_select" ON projetos;
+    DROP POLICY IF EXISTS "projetos_insert" ON projetos;
+    DROP POLICY IF EXISTS "projetos_update" ON projetos;
+    DROP POLICY IF EXISTS "projetos_delete" ON projetos;
+    -- Entregas
+    DROP POLICY IF EXISTS "entregas_select" ON entregas;
+    DROP POLICY IF EXISTS "entregas_insert" ON entregas;
+    DROP POLICY IF EXISTS "entregas_update" ON entregas;
+    DROP POLICY IF EXISTS "entregas_delete" ON entregas;
+END $$;
+
+-- Clientes: todos veem, só admin gerencia
+CREATE POLICY "clientes_select" ON clientes FOR SELECT USING (auth.uid() IS NOT NULL);
+CREATE POLICY "clientes_all" ON clientes FOR ALL USING (
+  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+);
+
+-- Contatos: todos veem, só admin gerencia
+CREATE POLICY "cliente_contatos_select" ON cliente_contatos FOR SELECT USING (auth.uid() IS NOT NULL);
+CREATE POLICY "cliente_contatos_all" ON cliente_contatos FOR ALL USING (
+  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+);
+
+-- Projetos: todos veem e criam/editam, só admin deleta
+CREATE POLICY "projetos_select" ON projetos FOR SELECT USING (auth.uid() IS NOT NULL);
+CREATE POLICY "projetos_insert" ON projetos FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+CREATE POLICY "projetos_update" ON projetos FOR UPDATE USING (auth.uid() IS NOT NULL);
+CREATE POLICY "projetos_delete" ON projetos FOR DELETE USING (
+  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+);
+
+-- Entregas: todos veem e criam/editam (kanban colaborativo), só admin deleta
+CREATE POLICY "entregas_select" ON entregas FOR SELECT USING (auth.uid() IS NOT NULL);
+CREATE POLICY "entregas_insert" ON entregas FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+CREATE POLICY "entregas_update" ON entregas FOR UPDATE USING (auth.uid() IS NOT NULL);
+CREATE POLICY "entregas_delete" ON entregas FOR DELETE USING (
+  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+);
+
+-- Realtime: kanban de entregas ao vivo
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'entregas'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE entregas;
+  END IF;
+END $$;
+
+-- Badges novos da produção
+INSERT INTO badge_types (tipo, label, emoji, descricao, is_custom) VALUES
+  ('entregador', 'Entregador', '📦', '10 entregas concluídas', FALSE),
+  ('no_prazo', 'No Prazo', '⏱️', '10 entregas concluídas dentro do prazo', FALSE)
+ON CONFLICT (tipo) DO NOTHING;
+
+-- ============================================
+-- GAMIFICAÇÃO v2: complexidade + fechamento da daily
+-- ============================================
+
+-- Complexidade da task: missão mais pesada vale mais pontos (leve 5 / media 10 / pesada 20)
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS complexidade TEXT NOT NULL DEFAULT 'media'
+  CHECK (complexidade IN ('leve', 'media', 'pesada'));
+
+-- Fechamento do dia: registra que a daily do dia foi encerrada (bônus + streak processados)
+CREATE TABLE IF NOT EXISTS daily_fechamentos (
+  data DATE PRIMARY KEY,
+  fechado_por UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE daily_fechamentos ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+    DROP POLICY IF EXISTS "daily_fechamentos_select" ON daily_fechamentos;
+    DROP POLICY IF EXISTS "daily_fechamentos_insert" ON daily_fechamentos;
+END $$;
+
+-- Todos veem, só admin fecha o dia
+CREATE POLICY "daily_fechamentos_select" ON daily_fechamentos FOR SELECT USING (auth.uid() IS NOT NULL);
+CREATE POLICY "daily_fechamentos_insert" ON daily_fechamentos FOR INSERT WITH CHECK (
+  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+);
+
+-- Ordem de exibição dos membros no quadro da daily (definida pelo admin; NULL = ordem alfabética)
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS ordem_daily INTEGER;

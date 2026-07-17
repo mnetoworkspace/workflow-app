@@ -1,13 +1,15 @@
 'use client'
 
-import { useState } from 'react'
-import { Profile, Task, Impedimento, AvatarFrame, Falta, Badge, BadgeType, BADGE_INFO } from '@/types'
+import { useEffect, useState } from 'react'
+import { Profile, Task, Impedimento, AvatarFrame, Falta, Badge, BadgeType, Cliente, BADGE_INFO, getPontosTask } from '@/types'
+import { format, parseISO } from 'date-fns'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
 import { Input } from '@/components/ui/input'
 import {
   CheckCircle2, Clock, XCircle, ArrowRight, AlertTriangle, CheckCircle,
   Plus, Pencil, Check, X, Smile, RotateCcw, CalendarPlus, UserX, UserCheck,
+  ArrowUpDown, ChevronUp, ChevronDown,
 } from 'lucide-react'
 import TaskList from '@/components/tasks/TaskList'
 import AddTaskForm from '@/components/tasks/AddTaskForm'
@@ -34,10 +36,11 @@ function StatusIcon({ status }: { status: Task['status'] }) {
 }
 
 // ── Anterior task item com ações inline ──────────────────────────────────────
-function AnteriorItem({ task, canEdit, today, onUpdate }: {
+function AnteriorItem({ task, canEdit, today, yesterday, onUpdate }: {
   task: Task
   canEdit: boolean
   today: string
+  yesterday: string
   onUpdate: (id: string, newStatus: Task['status']) => void
 }) {
   const [loading, setLoading] = useState(false)
@@ -45,10 +48,20 @@ function AnteriorItem({ task, canEdit, today, onUpdate }: {
 
   async function updateStatus(newStatus: Task['status']) {
     setLoading(true)
+    const pts = getPontosTask(task)
+    if (newStatus === 'concluida') {
+      await supabase.from('pontos_historico').insert({ user_id: task.user_id, pontos: pts, motivo: `Tarefa concluída: ${task.titulo}` })
+      await supabase.rpc('increment_pontos', { uid: task.user_id, amount: pts })
+    }
+    if (newStatus === 'em_andamento' && task.status === 'concluida') {
+      await supabase.from('pontos_historico').insert({ user_id: task.user_id, pontos: -pts, motivo: `Tarefa reaberta: ${task.titulo}` })
+      await supabase.rpc('increment_pontos', { uid: task.user_id, amount: -pts })
+    }
     await supabase.from('tasks').update({
       status: newStatus,
       concluida_em: newStatus === 'concluida' ? new Date().toISOString() : null,
     }).eq('id', task.id)
+    if (newStatus === 'concluida') toast.success(`✅ +${pts} pts`)
     onUpdate(task.id, newStatus)
     setLoading(false)
   }
@@ -57,6 +70,7 @@ function AnteriorItem({ task, canEdit, today, onUpdate }: {
     setLoading(true)
     const { error } = await supabase.from('tasks').insert({
       user_id: task.user_id, titulo: task.titulo, data: today, status: 'em_andamento',
+      complexidade: task.complexidade, cliente_id: task.cliente_id, entrega_id: task.entrega_id, origem_task_id: task.id,
     })
     if (!error) toast.success('Tarefa adicionada para hoje!')
     else toast.error('Erro ao trazer tarefa')
@@ -72,10 +86,21 @@ function AnteriorItem({ task, canEdit, today, onUpdate }: {
         task.status === 'cancelada' && 'text-[#333355] line-through',
       )}>
         {task.titulo}
+        {task.cliente && (
+          <span className="text-[#ff0080] ml-1.5 text-[9px] font-semibold uppercase tracking-wider">
+            {task.cliente.nome}
+          </span>
+        )}
       </span>
       {task.status === 'postergada' && (
         <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#ff8800]/10 text-[#ff8800] border border-[#ff8800]/20 shrink-0">
           postergada
+        </span>
+      )}
+      {/* Missão antiga ainda em aberto → mostra desde quando */}
+      {task.status === 'em_andamento' && task.data < yesterday && (
+        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#ff0055]/10 text-[#ff0055] border border-[#ff0055]/20 shrink-0 font-mono">
+          desde {format(parseISO(task.data), 'dd/MM')}
         </span>
       )}
       {canEdit && (
@@ -106,7 +131,7 @@ function AnteriorItem({ task, canEdit, today, onUpdate }: {
 
 // ── Card principal de cada membro ────────────────────────────────────────────
 function MemberCard({ profile, anteriores, atuais, impedimento, currentProfile, today, yesterday,
-  faltou, faltaId, onToggleFalta, memberBadges, badgeInfoMap }: {
+  faltou, faltaId, onToggleFalta, memberBadges, badgeInfoMap, clientes }: {
   profile: Profile
   anteriores: Task[]
   atuais: Task[]
@@ -119,6 +144,7 @@ function MemberCard({ profile, anteriores, atuais, impedimento, currentProfile, 
   onToggleFalta: (userId: string, faltaId: string | null) => void
   memberBadges: Badge[]
   badgeInfoMap: Record<string, { emoji: string; label: string }>
+  clientes: Cliente[]
 }) {
   const isOwn   = profile.id === currentProfile.id
   const isAdmin = currentProfile.role === 'admin'
@@ -369,6 +395,7 @@ function MemberCard({ profile, anteriores, atuais, impedimento, currentProfile, 
                           task={task}
                           canEdit={canEdit}
                           today={today}
+                          yesterday={yesterday}
                           onUpdate={updateAnteriorStatus}
                         />
                       ))}
@@ -400,7 +427,7 @@ function MemberCard({ profile, anteriores, atuais, impedimento, currentProfile, 
               {/* Atuais */}
               <div>
                 <p className="text-[9px] font-semibold text-[#444466] uppercase tracking-[0.15em] mb-2">Atividades Atuais</p>
-                {canEdit && <div className="mb-2"><AddTaskForm userId={profile.id} date={today} /></div>}
+                {canEdit && <div className="mb-2"><AddTaskForm userId={profile.id} date={today} clientes={clientes} /></div>}
                 <TaskList tasks={atuais} userId={currentProfile.id} isAdmin={isAdmin} />
               </div>
             </div>
@@ -413,7 +440,7 @@ function MemberCard({ profile, anteriores, atuais, impedimento, currentProfile, 
 
 // ── Board principal ──────────────────────────────────────────────────────────
 export default function DailyBoard({ profiles, todayTasks, yesterdayTasks, impedimentos,
-  faltas, badges, badgeTypes, currentProfile, today, yesterday }: {
+  faltas, badges, badgeTypes, clientes, currentProfile, today, yesterday }: {
   profiles: Profile[]
   todayTasks: (Task & { profile?: Profile })[]
   yesterdayTasks: (Task & { profile?: Profile })[]
@@ -421,6 +448,7 @@ export default function DailyBoard({ profiles, todayTasks, yesterdayTasks, imped
   faltas: Falta[]
   badges: Badge[]
   badgeTypes: BadgeType[]
+  clientes: Cliente[]
   currentProfile: Profile
   today: string
   yesterday: string
@@ -429,6 +457,27 @@ export default function DailyBoard({ profiles, todayTasks, yesterdayTasks, imped
   const [faltaMap, setFaltaMap] = useState<Map<string, string>>(
     new Map(faltas.map(f => [f.user_id, f.id]))
   )
+
+  // Ordem dos membros no quadro (admin pode reordenar)
+  const [ordered, setOrdered] = useState<Profile[]>(profiles)
+  const [reordering, setReordering] = useState(false)
+  const isAdmin = currentProfile.role === 'admin'
+  const supabase = createClient()
+
+  useEffect(() => { setOrdered(profiles) }, [profiles])
+
+  async function moveMember(idx: number, dir: -1 | 1) {
+    const j = idx + dir
+    if (j < 0 || j >= ordered.length) return
+    const next = [...ordered]
+    ;[next[idx], next[j]] = [next[j], next[idx]]
+    setOrdered(next)
+    // Persiste a posição de todos (lista pequena)
+    const { error } = await Promise.all(
+      next.map((p, i) => supabase.from('profiles').update({ ordem_daily: i }).eq('id', p.id))
+    ).then(results => ({ error: results.find(r => r.error)?.error }))
+    if (error) toast.error('Erro ao salvar a ordem')
+  }
 
   // Mapa unificado de badge info (estáticos + dinâmicos)
   const badgeInfoMap: Record<string, { emoji: string; label: string }> = {
@@ -458,29 +507,70 @@ export default function DailyBoard({ profiles, todayTasks, yesterdayTasks, imped
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2">
-      {profiles.map((profile, i) => {
-        const faltaId = faltaMap.get(profile.id) ?? null
-        const memberBadges = badges.filter(b => b.user_id === profile.id)
-        return (
-          <motion.div key={profile.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.08 }}>
-            <MemberCard
-              profile={profile}
-              anteriores={yesterdayTasks.filter(t => t.user_id === profile.id)}
-              atuais={todayTasks.filter(t => t.user_id === profile.id)}
-              impedimento={impedimentos.find(im => im.user_id === profile.id) ?? null}
-              currentProfile={currentProfile}
-              today={today}
-              yesterday={yesterday}
-              faltou={!!faltaId}
-              faltaId={faltaId}
-              onToggleFalta={toggleFalta}
-              memberBadges={memberBadges}
-              badgeInfoMap={badgeInfoMap}
-            />
-          </motion.div>
-        )
-      })}
+    <div>
+      {/* Reordenar membros — admin */}
+      {isAdmin && (
+        <div className="flex justify-end mb-3">
+          <button
+            onClick={() => setReordering(v => !v)}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium border transition-all',
+              reordering
+                ? 'text-[#00ff88] border-[#00ff88]/30 bg-[#00ff88]/10'
+                : 'text-[#6666aa] border-white/[0.07] hover:text-white hover:border-white/[0.15]'
+            )}
+          >
+            <ArrowUpDown className="h-3 w-3" />
+            {reordering ? 'Concluir ordenação' : 'Reordenar membros'}
+          </button>
+        </div>
+      )}
+
+      <div className="grid gap-4 md:grid-cols-2">
+        {ordered.map((profile, i) => {
+          const faltaId = faltaMap.get(profile.id) ?? null
+          const memberBadges = badges.filter(b => b.user_id === profile.id)
+          return (
+            <motion.div key={profile.id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: reordering ? 0 : i * 0.08 }} className="relative">
+              {reordering && (
+                <div className="absolute -top-2.5 right-4 z-10 flex gap-1">
+                  <button
+                    onClick={() => moveMember(i, -1)}
+                    disabled={i === 0}
+                    className="h-7 w-7 flex items-center justify-center rounded-lg bg-[#0a0a22] border border-[#00ff88]/30 text-[#00ff88] hover:bg-[#00ff88]/15 transition-colors disabled:opacity-30"
+                    title="Mover para cima"
+                  >
+                    <ChevronUp className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => moveMember(i, 1)}
+                    disabled={i === ordered.length - 1}
+                    className="h-7 w-7 flex items-center justify-center rounded-lg bg-[#0a0a22] border border-[#00ff88]/30 text-[#00ff88] hover:bg-[#00ff88]/15 transition-colors disabled:opacity-30"
+                    title="Mover para baixo"
+                  >
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
+              <MemberCard
+                profile={profile}
+                anteriores={yesterdayTasks.filter(t => t.user_id === profile.id)}
+                atuais={todayTasks.filter(t => t.user_id === profile.id)}
+                impedimento={impedimentos.find(im => im.user_id === profile.id) ?? null}
+                currentProfile={currentProfile}
+                today={today}
+                yesterday={yesterday}
+                faltou={!!faltaId}
+                faltaId={faltaId}
+                onToggleFalta={toggleFalta}
+                memberBadges={memberBadges}
+                badgeInfoMap={badgeInfoMap}
+                clientes={clientes}
+              />
+            </motion.div>
+          )
+        })}
+      </div>
     </div>
   )
 }
