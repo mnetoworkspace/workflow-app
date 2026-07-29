@@ -65,8 +65,9 @@ export default async function DashboardPage() {
           userId={user.id}
           label="⚠️ Missões pendentes de dias anteriores"
           emptyHidden
+          clientes={clientes ?? []}
         />
-        <TaskList tasks={tasks ?? []} userId={user.id} label="Missões de hoje" />
+        <TaskList tasks={tasks ?? []} userId={user.id} label="Missões de hoje" clientes={clientes ?? []} />
         <ImpedimentoCard impedimento={impedimento} userId={user.id} date={today} />
       </div>
     </div>

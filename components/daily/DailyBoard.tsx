@@ -428,7 +428,7 @@ function MemberCard({ profile, anteriores, atuais, impedimento, currentProfile, 
               <div>
                 <p className="text-[9px] font-semibold text-[#444466] uppercase tracking-[0.15em] mb-2">Atividades Atuais</p>
                 {canEdit && <div className="mb-2"><AddTaskForm userId={profile.id} date={today} clientes={clientes} /></div>}
-                <TaskList tasks={atuais} userId={currentProfile.id} isAdmin={isAdmin} />
+                <TaskList tasks={atuais} userId={currentProfile.id} isAdmin={isAdmin} clientes={clientes} />
               </div>
             </div>
           </>

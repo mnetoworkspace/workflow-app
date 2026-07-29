@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Task, TaskStatus, getPontosTask, COMPLEXIDADE_LABELS, COMPLEXIDADE_COLORS } from '@/types'
+import { Task, TaskStatus, Cliente, getPontosTask, COMPLEXIDADE_LABELS, COMPLEXIDADE_COLORS } from '@/types'
 import {
   CheckCircle2, Clock, XCircle, ArrowRight, Trash2, RotateCcw,
   Pencil, Check, X, Calendar, Clock3, Building2, Square, CheckSquare, ListChecks,
@@ -23,16 +23,18 @@ const STATUS = {
 }
 
 // ── Bottom sheet com detalhes da task ─────────────────────────────────────────
-function TaskSheet({ task: initialTask, onClose, userId, isAdmin }: {
+function TaskSheet({ task: initialTask, onClose, userId, isAdmin, clientes = [] }: {
   task: Task
   onClose: () => void
   userId: string
   isAdmin?: boolean
+  clientes?: Cliente[]
 }) {
   const [task, setTask]           = useState(initialTask)
   const [loading, setLoading]     = useState(false)
   const [editingTitle, setEditingTitle] = useState(false)
   const [titleInput, setTitleInput]     = useState(initialTask.titulo)
+  const [editingCliente, setEditingCliente] = useState(false)
   const router  = useRouter()
   const supabase = createClient()
   const canEdit  = task.user_id === userId || isAdmin
@@ -91,6 +93,25 @@ function TaskSheet({ task: initialTask, onClose, userId, isAdmin }: {
     toast.success('Tarefa removida')
     router.refresh()
     onClose()
+  }
+
+  async function saveCliente(clienteId: string) {
+    if (clienteId === (task.cliente_id ?? '')) { setEditingCliente(false); return }
+    setLoading(true)
+    // Ao trocar de cliente a entrega vinculada não é mais válida
+    const { error } = await supabase
+      .from('tasks')
+      .update({ cliente_id: clienteId || null, entrega_id: null })
+      .eq('id', task.id)
+    if (!error) {
+      const novoCliente = clientes.find(c => c.id === clienteId) ?? null
+      setTask(prev => ({ ...prev, cliente_id: clienteId || null, cliente: novoCliente ?? undefined, entrega_id: null }))
+      router.refresh()
+    } else {
+      toast.error('Erro ao salvar')
+    }
+    setLoading(false)
+    setEditingCliente(false)
   }
 
   const formattedData    = format(parseISO(task.data), "d 'de' MMMM", { locale: ptBR })
@@ -186,9 +207,33 @@ function TaskSheet({ task: initialTask, onClose, userId, isAdmin }: {
           <div className="space-y-2 mb-5 p-3 rounded-xl bg-white/[0.03] border border-white/[0.05]">
             <div className="flex items-center gap-2.5 text-xs text-[#6666aa]">
               <Building2 className="h-3.5 w-3.5 shrink-0" />
-              {task.cliente
-                ? <span>Cliente: <span className="text-[#ff0080] font-medium">{task.cliente.nome}</span></span>
-                : <span>Atividade <span className="text-[#8888bb]">interna</span></span>}
+              {editingCliente ? (
+                <select
+                  autoFocus
+                  defaultValue={task.cliente_id ?? ''}
+                  disabled={loading}
+                  onChange={e => saveCliente(e.target.value)}
+                  onBlur={() => setEditingCliente(false)}
+                  className="neon-input h-7 text-xs rounded-md px-2 bg-transparent flex-1 max-w-[220px]"
+                >
+                  <option value="" className="bg-[#0a0a22]">🏠 Interno</option>
+                  {clientes.map(c => (
+                    <option key={c.id} value={c.id} className="bg-[#0a0a22]">{c.nome}</option>
+                  ))}
+                </select>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => canEdit && setEditingCliente(true)}
+                  disabled={!canEdit}
+                  className="flex-1 text-left disabled:cursor-default"
+                >
+                  {task.cliente
+                    ? <span>Cliente: <span className="text-[#ff0080] font-medium">{task.cliente.nome}</span></span>
+                    : <span>Atividade <span className="text-[#8888bb]">interna</span></span>}
+                  {canEdit && <Pencil className="h-2.5 w-2.5 inline-block ml-1.5 text-[#333355]" />}
+                </button>
+              )}
             </div>
             <div className="flex items-center gap-2.5 text-xs text-[#6666aa]">
               <Calendar className="h-3.5 w-3.5 shrink-0" />
@@ -433,12 +478,13 @@ function TaskItem({ task, userId, isAdmin, onOpen, selectMode, isSelected, onTog
 }
 
 // ── TaskList ──────────────────────────────────────────────────────────────────
-export default function TaskList({ tasks, userId, isAdmin, label = 'Tarefas', emptyHidden }: {
+export default function TaskList({ tasks, userId, isAdmin, label = 'Tarefas', emptyHidden, clientes = [] }: {
   tasks: Task[]
   userId: string
   isAdmin?: boolean
   label?: string
   emptyHidden?: boolean
+  clientes?: Cliente[]
 }) {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [selectMode, setSelectMode] = useState(false)
@@ -627,6 +673,7 @@ export default function TaskList({ tasks, userId, isAdmin, label = 'Tarefas', em
             onClose={() => setSelectedTask(null)}
             userId={userId}
             isAdmin={isAdmin}
+            clientes={clientes}
           />
         )}
       </AnimatePresence>
