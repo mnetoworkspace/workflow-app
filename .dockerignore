@@ -1,0 +1,12 @@
+node_modules
+.next
+out
+.git
+.vercel
+.env*
+*.log
+npm-debug.log*
+coverage
+backup-*.json
+supacodes.txt
+scripts
